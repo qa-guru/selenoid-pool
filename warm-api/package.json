@@ -1,0 +1,6 @@
+{
+  "name": "@qaguru/warm-api",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Shared warm-pool HTTP API for browser slot containers"
+}

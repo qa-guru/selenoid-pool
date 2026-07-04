@@ -1,0 +1,108 @@
+# warm-pool-orchestrator
+
+Protocol-agnostic warm browser pool for fast CI UI tests.
+
+Slots expose the same HTTP warm API whether the browser is **WebDriver** ([`browser-image/webdriver`](../browser-image/webdriver/README.md)) or **Playwright** ([`browser-image/playwright`](../browser-image/playwright/README.md)). The orchestrator only knows `warm_url` + curl.
+
+## Architecture
+
+```
+Jenkins job start
+    │
+    ├─ POST /pool/reserve          → slotId, webdriverUrl / playwrightWsUrl
+    ├─ POST /pool/preopen {url}    → curl slot /warm/goto  (parallel with Gradle)
+    ├─ POST /pool/video/start      → optional, on demand
+    │
+    ├─ ./gradlew test -Dwarm_driver=true ...
+    │
+    └─ POST /pool/video/stop
+       POST /pool/release
+```
+
+## Warm API contract (on each slot, port `8080`)
+
+Canonical implementation: [`warm-api/`](warm-api/).
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| GET | `/warm/status` | — | Slot readiness, protocol, sessionId, video state |
+| POST | `/warm/goto` | `{"url":"..."}` | Open URL on hot browser |
+| POST | `/warm/reset` | — | Cookies cleared, `about:blank` |
+| POST | `/warm/video/start` | `{"sessionId":"pool-chrome-1"}` optional | Start ffmpeg x11grab |
+| POST | `/warm/video/stop` | — | Stop recording, finalize mp4 |
+
+### Video naming
+
+`sessionId` is **stable per slot** (e.g. `pool-chrome-1`). Each recording gets a unique file:
+
+```
+{sessionId}-{timestamp}.mp4
+```
+
+Example: `pool-chrome-1-1782638876524.mp4`
+
+Same logical session, many runs — no overwrite. Toggle recording per run via `/warm/video/start` and `/warm/video/stop` without restarting the browser.
+
+## Orchestrator API (port `9090`)
+
+| Method | Path | Body |
+|--------|------|------|
+| GET | `/health` | — |
+| GET | `/pool/slots` | — |
+| POST | `/pool/reserve` | `{"protocol":"webdriver","browser":"chrome","owner":"jenkins-42"}` |
+| POST | `/pool/release` | `{"slotId":"pool-chrome-1"}` |
+| POST | `/pool/preopen` | `{"slotId":"...","url":"https://..."}` |
+| POST | `/pool/video/start` | `{"slotId":"...","sessionId":"..."}` |
+| POST | `/pool/video/stop` | `{"slotId":"..."}` |
+
+## Quick start
+
+```bash
+cd warm-pool-orchestrator
+python -m pip install -r requirements.txt
+
+# terminal 1 — build slot image first (see webdriver-image/README.md)
+# terminal 2
+python run.py --config config.example.yaml
+```
+
+Docker Compose (example):
+
+```bash
+docker compose -f docker-compose.example.yml up --build
+```
+
+## Jenkins: preopen before Gradle
+
+See [`scripts/jenkins-preopen.example.sh`](scripts/jenkins-preopen.example.sh).
+
+```bash
+export WARM_POOL_URL=http://127.0.0.1:9090
+export PREOPEN_URL=https://your-app/login.html?ru
+./scripts/jenkins-preopen.example.sh &
+./gradlew test --tests 'tests.LoginTests.successfulAuthorizationTest' -Dwarm_driver=true
+```
+
+Gradle flags (planned in tests-java):
+
+| Flag | Meaning |
+|------|---------|
+| `-Dwarm_driver=true` | Use reserved slot instead of cold Selenoid |
+| `-Dpreopen_url=` | Skip `open()` if page already loaded (empty = disabled) |
+| `-Dwarm_slot_id=` | Slot from orchestrator reserve |
+
+## Slot environment
+
+| Env | Default | Description |
+|-----|---------|-------------|
+| `WARM_SLOT_ID` | hostname | Pool slot name |
+| `WARM_SESSION_ID` | `WARM_SLOT_ID` | Stable id for video file prefix |
+| `WARM_PORT` | `8080` | Warm API port |
+| `WARM_VIDEO_DIR` | `/data/video` | mp4 output |
+| `WARM_VIDEO` | `true` | Keep Xvfb for ffmpeg |
+
+Playwright slots additionally: `WARM_ENABLED=true`, `PW_WS_ENDPOINT` (set by entrypoint).
+
+## Status
+
+PoC / feature branch — not wired to prod Selenoid yet. Pool runs alongside Jenkins on the same host (see resource notes in prior discussion: 6 Chrome slots ≈ 2 GB RAM).

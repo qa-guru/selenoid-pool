@@ -1,0 +1,45 @@
+services:
+  warm-chrome-1:
+    image: qaguru/webdriver-chrome:148
+    container_name: warm-chrome-1
+    environment:
+      WARM_SLOT_ID: pool-chrome-1
+      WARM_SESSION_ID: pool-chrome-1
+      WARM_VIDEO: "true"
+    volumes:
+      - ./video:/data/video
+    networks:
+      - warm-pool
+    shm_size: "512m"
+
+  warm-chrome-2:
+    image: qaguru/webdriver-chrome:148
+    container_name: warm-chrome-2
+    environment:
+      WARM_SLOT_ID: pool-chrome-2
+      WARM_SESSION_ID: pool-chrome-2
+      WARM_VIDEO: "true"
+    volumes:
+      - ./video:/data/video
+    networks:
+      - warm-pool
+    shm_size: "512m"
+
+  orchestrator:
+    build: .
+    container_name: warm-pool-orchestrator
+    ports:
+      - "9090:9090"
+    environment:
+      WARM_POOL_CONFIG: /config/config.yaml
+    volumes:
+      - ./config.example.yaml:/config/config.yaml:ro
+    networks:
+      - warm-pool
+    depends_on:
+      - warm-chrome-1
+      - warm-chrome-2
+
+networks:
+  warm-pool:
+    name: warm-pool
