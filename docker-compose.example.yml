@@ -27,7 +27,7 @@ services:
 
   orchestrator:
     build: .
-    container_name: warm-pool-orchestrator
+    container_name: selenoid-warm-pool
     ports:
       - "9090:9090"
     environment:

@@ -17,8 +17,8 @@ reserve_json="$(curl -sf -X POST "${ORCHESTRATOR_URL}/pool/reserve" \
   -H 'Content-Type: application/json' \
   -d "{\"protocol\":\"webdriver\",\"browser\":\"chrome\",\"owner\":\"${OWNER}\"}")"
 
-SLOT_ID="$(printf '%s' "${reserve_json}" | python -c "import sys,json; print(json.load(sys.stdin)['slot']['id'])")"
-WEBDRIVER_URL="$(printf '%s' "${reserve_json}" | python -c "import sys,json; print(json.load(sys.stdin)['slot'].get('webdriverUrl') or '')")"
+SLOT_ID="$(printf '%s' "${reserve_json}" | jq -r '.slot.id')"
+WEBDRIVER_URL="$(printf '%s' "${reserve_json}" | jq -r '.slot.webdriverUrl // ""')"
 
 echo "WARM_SLOT_ID=${SLOT_ID}"
 echo "Reserved slot ${SLOT_ID}"

@@ -1,0 +1,16 @@
+# Keep build context small for the multi-stage Go image.
+.git
+.gitignore
+selenoid-warm-pool
+*.exe
+*.test
+*.out
+video/
+.env
+*.log
+.idea/
+.vscode/
+warm-api/
+scripts/
+README.md
+docker-compose.example.yml

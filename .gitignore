@@ -1,8 +1,14 @@
-.venv/
-__pycache__/
-*.pyc
+# Go
+/selenoid-warm-pool
+*.exe
+*.test
+*.out
+vendor/
+
+# Local
 .env
 *.log
+video/
 .idea/
 .vscode/
 .DS_Store

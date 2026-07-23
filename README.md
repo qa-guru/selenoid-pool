@@ -1,4 +1,4 @@
-# warm-pool-orchestrator
+# selenoid-warm-pool
 
 Protocol-agnostic warm browser pool for fast CI UI tests.
 
@@ -57,20 +57,29 @@ Same logical session, many runs — no overwrite. Toggle recording per run via `
 
 ## Quick start
 
-```bash
-cd warm-pool-orchestrator
-python -m pip install -r requirements.txt
+Go 1.26+ (matches `selenoid` / `cm`). No Python, no pip.
 
-# terminal 1 — build slot image first (see webdriver-image/README.md)
+```bash
+cd selenoid-warm-pool
+go build -o selenoid-warm-pool .
+
+# terminal 1 — build/start slot containers first (see browser-image/README.md)
 # terminal 2
-python run.py --config config.example.yaml
+./selenoid-warm-pool --config config.example.yaml
+# then: curl -s http://127.0.0.1:9090/health
 ```
+
+Config path, host and port come from flags (`--config --host --port`) or env
+(`WARM_POOL_CONFIG`, `WARM_POOL_HOST`, `WARM_POOL_PORT`). Defaults:
+`config.example.yaml`, `0.0.0.0`, `9090`.
 
 Docker Compose (example):
 
 ```bash
 docker compose -f docker-compose.example.yml up --build
 ```
+
+The orchestrator image is a multi-stage static Go binary on `scratch`.
 
 ## Jenkins: preopen before Gradle
 
@@ -105,4 +114,4 @@ Playwright slots additionally: `WARM_ENABLED=true`, `PW_WS_ENDPOINT` (set by ent
 
 ## Status
 
-PoC / feature branch — not wired to prod Selenoid yet. Pool runs alongside Jenkins on the same host (see resource notes in prior discussion: 6 Chrome slots ≈ 2 GB RAM).
+Go rewrite of the original Python/Flask PoC (renamed from `warm-pool-orchestrator`) — a 1:1 port of the same API/semantics, still **not wired to prod Selenoid**. Pool runs alongside Jenkins on the same host (see resource notes in prior discussion: 6 Chrome slots ≈ 2 GB RAM).
