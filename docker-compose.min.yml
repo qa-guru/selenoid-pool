@@ -1,0 +1,50 @@
+# Minimal warm pool for box2-ci (Jenkins agents).
+# chrome-min only — no VNC, no video, no warm-api sidecar.
+#
+#   docker compose -f docker-compose.min.yml up -d
+services:
+  warm-chrome-1:
+    image: qaguru/webdriver-chrome:148-min
+    container_name: warm-chrome-1
+    restart: unless-stopped
+    environment:
+      WARM_SLOT_ID: pool-chrome-1
+      WARM_SESSION_ID: pool-chrome-1
+    shm_size: "256m"
+    networks:
+      - jenkins-agents
+
+  warm-chrome-2:
+    image: qaguru/webdriver-chrome:148-min
+    container_name: warm-chrome-2
+    restart: unless-stopped
+    environment:
+      WARM_SLOT_ID: pool-chrome-2
+      WARM_SESSION_ID: pool-chrome-2
+    shm_size: "256m"
+    networks:
+      - jenkins-agents
+
+  orchestrator:
+    build: .
+    image: qaguru/selenoid-warm-pool:min
+    container_name: selenoid-warm-pool
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    environment:
+      WARM_POOL_CONFIG: /config/config.yaml
+      WARM_POOL_HOST: "0.0.0.0"
+      WARM_POOL_PORT: "9090"
+    volumes:
+      - ./config.min.yaml:/config/config.yaml:ro
+    networks:
+      - jenkins-agents
+    depends_on:
+      - warm-chrome-1
+      - warm-chrome-2
+
+networks:
+  jenkins-agents:
+    name: docker-compose-config_my-network
+    external: true

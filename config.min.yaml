@@ -1,0 +1,18 @@
+# Minimal pool for box2-ci java-jdk21 agents (same docker network).
+# warm_url is unused without warm-api — reserve/release still work.
+# Agents reach slots by container DNS: http://warm-chrome-N:4444/
+
+slots:
+  - id: pool-chrome-1
+    protocol: webdriver
+    browser: chrome
+    session_id: pool-chrome-1
+    warm_url: http://warm-chrome-1:4444
+    webdriver_url: http://warm-chrome-1:4444/
+
+  - id: pool-chrome-2
+    protocol: webdriver
+    browser: chrome
+    session_id: pool-chrome-2
+    warm_url: http://warm-chrome-2:4444
+    webdriver_url: http://warm-chrome-2:4444/
