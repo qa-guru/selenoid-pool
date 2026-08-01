@@ -114,6 +114,8 @@ Playwright slots additionally: `WARM_ENABLED=true`, `PW_WS_ENDPOINT` (set by ent
 
 ## Hub UI metrics (box1)
 
+GitHub: https://github.com/qa-guru/selenoid-warm-pool
+
 Deploy next to the Selenoid hub so `/status` exposes `warmReady` / `warmTotal` for selenoid-ui WARM:
 
 ```bash
