@@ -1,6 +1,8 @@
 [Unit]
 Description=Selenoid hub (native binary) — qa-guru Selenoid 2
 Documentation=https://github.com/qa-guru/selenoid
+# SSOT for -warm-pool-url — copy into qa-guru/selenoid.qa.guru deploy/selenoid-hub.service
+# before hub deploy (deploy.sh refuses a unit without the flag when WARM_POOL_URL is set).
 # Hub runs as a native host binary (not hub-in-docker) so browser port
 # bindings on the selenoid docker network stay reachable. Needs the Docker
 # daemon up first; browser containers are created via /var/run/docker.sock.
