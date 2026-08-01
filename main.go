@@ -249,6 +249,8 @@ func (s *server) lookup(id string) *Slot {
 
 func (s *server) routes() *http.ServeMux {
 	mux := http.NewServeMux()
+	// GET / must be 2xx — stand URL gate probes the root path.
+	mux.HandleFunc("GET /{$}", s.health)
 	mux.HandleFunc("GET /health", s.health)
 	mux.HandleFunc("GET /pool/slots", s.listSlots)
 	mux.HandleFunc("POST /pool/reserve", s.reserve)
