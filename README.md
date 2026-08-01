@@ -112,6 +112,17 @@ Gradle flags (planned in tests-java):
 
 Playwright slots additionally: `WARM_ENABLED=true`, `PW_WS_ENDPOINT` (set by entrypoint).
 
+## Hub UI metrics (box1)
+
+Deploy next to the Selenoid hub so `/status` exposes `warmReady` / `warmTotal` for selenoid-ui WARM:
+
+```bash
+docker compose -f docker-compose.hub.yml up -d --build
+# hub flag: -warm-pool-url http://127.0.0.1:9090
+```
+
+Configs: `docker-compose.hub.yml` + `config.hub.yaml`. Jenkins attach path stays on box2 (`docker-compose.min.yml`).
+
 ## Status
 
-Go rewrite of the original Python/Flask PoC (renamed from `warm-pool-orchestrator`) — a 1:1 port of the same API/semantics, still **not wired to prod Selenoid**. Pool runs alongside Jenkins on the same host (see resource notes in prior discussion: 6 Chrome slots ≈ 2 GB RAM).
+Go rewrite of the original Python/Flask PoC. Hub polls orchestrator for UI WARM; session routing through the hub is still a follow-up.

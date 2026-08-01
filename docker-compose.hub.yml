@@ -1,0 +1,50 @@
+# Warm pool next to Selenoid hub (box1-selenoid).
+# Hub binary on host probes orchestrator via -warm-pool-url http://127.0.0.1:9090
+#
+#   docker compose -f docker-compose.hub.yml up -d
+services:
+  warm-chrome-1:
+    image: qaguru/webdriver-chrome:148-min
+    container_name: warm-chrome-1
+    restart: unless-stopped
+    environment:
+      WARM_SLOT_ID: pool-chrome-1
+      WARM_SESSION_ID: pool-chrome-1
+    shm_size: "256m"
+    networks:
+      - selenoid-warm
+
+  warm-chrome-2:
+    image: qaguru/webdriver-chrome:148-min
+    container_name: warm-chrome-2
+    restart: unless-stopped
+    environment:
+      WARM_SLOT_ID: pool-chrome-2
+      WARM_SESSION_ID: pool-chrome-2
+    shm_size: "256m"
+    networks:
+      - selenoid-warm
+
+  orchestrator:
+    build: .
+    image: qaguru/selenoid-warm-pool:min
+    container_name: selenoid-warm-pool
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    environment:
+      WARM_POOL_CONFIG: /config/config.yaml
+      WARM_POOL_HOST: "0.0.0.0"
+      WARM_POOL_PORT: "9090"
+    volumes:
+      - ./config.hub.yaml:/config/config.yaml:ro
+    networks:
+      - selenoid-warm
+    depends_on:
+      - warm-chrome-1
+      - warm-chrome-2
+
+networks:
+  selenoid-warm:
+    name: selenoid-warm
+    driver: bridge

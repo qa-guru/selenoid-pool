@@ -1,0 +1,37 @@
+[Unit]
+Description=Selenoid hub (native binary) — qa-guru Selenoid 2
+Documentation=https://github.com/qa-guru/selenoid
+# Hub runs as a native host binary (not hub-in-docker) so browser port
+# bindings on the selenoid docker network stay reachable. Needs the Docker
+# daemon up first; browser containers are created via /var/run/docker.sock.
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=selenoid
+Group=docker
+Environment=TZ=Local
+# Do NOT pin DOCKER_API_VERSION: the moby client auto-negotiates with the
+# engine (Docker Engine 29.x → API 1.55). Pinning 1.45 is stale.
+# Playwright ?accessKey= is gated at nginx; UI hubAuth is build-time.
+ExecStartPre=/bin/sh -c 'docker network inspect selenoid >/dev/null 2>&1 || docker network create selenoid'
+ExecStart=/bin/bash -c 'exec /opt/selenoid/bin/selenoid \
+  -conf /opt/selenoid/browsers.json \
+  -limit 25 \
+  -container-network selenoid \
+  -video-output-dir /opt/selenoid/video/ \
+  -video-recorder-image qaguru/video-recorder:latest \
+  -log-output-dir /opt/selenoid/logs/ \
+  -har-output-dir /opt/selenoid/har/ \
+  -service-startup-timeout 10m \
+  -session-attempt-timeout 5m \
+  -warm-pool-url http://127.0.0.1:9090 \
+  -listen :4444'
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

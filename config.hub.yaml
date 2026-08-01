@@ -1,0 +1,17 @@
+# Warm pool on hub host (box1). Orchestrator + chrome-min for UI WARM metrics.
+# Hub: -warm-pool-url http://127.0.0.1:9090
+
+slots:
+  - id: pool-chrome-1
+    protocol: webdriver
+    browser: chrome
+    session_id: pool-chrome-1
+    warm_url: http://warm-chrome-1:4444
+    webdriver_url: http://warm-chrome-1:4444/
+
+  - id: pool-chrome-2
+    protocol: webdriver
+    browser: chrome
+    session_id: pool-chrome-2
+    warm_url: http://warm-chrome-2:4444
+    webdriver_url: http://warm-chrome-2:4444/

@@ -1,0 +1,17 @@
+# Local host-side orchestrator config (ports published from slot containers).
+video_dir: ./video
+
+slots:
+  - id: pool-chrome-1
+    protocol: webdriver
+    browser: chrome
+    session_id: pool-chrome-1
+    warm_url: http://127.0.0.1:18081
+    webdriver_url: http://127.0.0.1:14441/
+
+  - id: pool-chrome-2
+    protocol: webdriver
+    browser: chrome
+    session_id: pool-chrome-2
+    warm_url: http://127.0.0.1:18082
+    webdriver_url: http://127.0.0.1:14442/
