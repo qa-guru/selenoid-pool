@@ -99,6 +99,15 @@ func stringField(body map[string]any, key string) (string, bool) {
 	return s, ok && s != ""
 }
 
+func boolField(body map[string]any, key string) bool {
+	v, ok := body[key]
+	if !ok || v == nil {
+		return false
+	}
+	b, ok := v.(bool)
+	return ok && b
+}
+
 func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 	s.pool.mu.Lock()
 	n := len(s.pool.slots)
@@ -124,9 +133,10 @@ func (s *server) reserve(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		owner = "anonymous"
 	}
+	loopback := boolField(body, "loopback")
 
 	s.pool.mu.Lock()
-	candidates := s.pool.available(protocol, browser)
+	candidates := s.pool.available(protocol, browser, loopback)
 	if len(candidates) == 0 {
 		s.pool.mu.Unlock()
 		writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
@@ -134,7 +144,7 @@ func (s *server) reserve(w http.ResponseWriter, r *http.Request) {
 	}
 	slot := candidates[0]
 	slot.ReservedBy = &owner
-	payload := slot.payload()
+	payload := slot.payloadFor(loopback)
 	s.pool.mu.Unlock()
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "slot": payload})

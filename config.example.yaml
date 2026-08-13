@@ -9,6 +9,7 @@ slots:
     session_id: pool-chrome-1
     warm_url: http://warm-chrome-1:8080
     webdriver_url: http://warm-chrome-1:4444/wd/hub
+    webdriver_url_loopback: http://127.0.0.1:14441/
 
   - id: pool-chrome-2
     protocol: webdriver
@@ -16,6 +17,7 @@ slots:
     session_id: pool-chrome-2
     warm_url: http://warm-chrome-2:8080
     webdriver_url: http://warm-chrome-2:4444/wd/hub
+    webdriver_url_loopback: http://127.0.0.1:14442/
 
   - id: pool-pw-chromium-1
     protocol: playwright

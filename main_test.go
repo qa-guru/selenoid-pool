@@ -360,6 +360,85 @@ slots:
 	}
 }
 
+func TestReserveLoopback409WhenOnlyDockerDNS(t *testing.T) {
+	ts := newTestServer(t, &warmStub{})
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{
+		"protocol": "webdriver",
+		"browser":  "chrome",
+		"owner":    "hub-1",
+		"loopback": true,
+	})
+	if code != 409 || body["error"] != "no available slots" {
+		t.Fatalf("want 409 for docker-DNS slots, got %d %v", code, body)
+	}
+}
+
+func TestReserveLoopbackPrefersLoopbackURL(t *testing.T) {
+	stub := &warmStub{}
+	warm := httptest.NewServer(stub.handler())
+	t.Cleanup(warm.Close)
+
+	loop := "http://127.0.0.1:14441/"
+	content := `
+slots:
+  - id: slot-webdriver-1
+    protocol: webdriver
+    browser: chrome
+    warm_url: ` + warm.URL + `
+    webdriver_url: http://warm-chrome-1:4444/
+    webdriver_url_loopback: ` + loop + `
+`
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := loadPool(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer((&server{pool: pool}).routes())
+	t.Cleanup(ts.Close)
+
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{
+		"protocol": "webdriver",
+		"browser":  "chrome",
+		"owner":    "hub-1",
+		"loopback": true,
+	})
+	if code != 200 || body["ok"] != true {
+		t.Fatalf("reserve: %d %v", code, body)
+	}
+	slot := body["slot"].(map[string]any)
+	if slot["webdriverUrl"] != loop {
+		t.Fatalf("webdriverUrl=%v want %s", slot["webdriverUrl"], loop)
+	}
+	if slot["webdriverUrlLoopback"] != loop {
+		t.Fatalf("webdriverUrlLoopback=%v", slot["webdriverUrlLoopback"])
+	}
+}
+
+func TestReserveWithoutLoopbackKeepsDockerDNS(t *testing.T) {
+	ts := newTestServer(t, &warmStub{})
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{
+		"protocol": "webdriver",
+		"browser":  "chrome",
+		"owner":    "jenkins-1",
+	})
+	if code != 200 {
+		t.Fatalf("reserve: %d %v", code, body)
+	}
+	slot := body["slot"].(map[string]any)
+	if slot["webdriverUrl"] != "http://warm-chrome-1:4444/wd/hub" {
+		t.Fatalf("webdriverUrl=%v", slot["webdriverUrl"])
+	}
+}
+
+func TestIsLoopbackURL(t *testing.T) {
+	if !isLoopbackURL("http://127.0.0.1:14441/") || isLoopbackURL("http://warm-chrome-1:4444/") {
+		t.Fatal("isLoopbackURL mismatch")
+	}
+}
+
 func TestLoadPoolDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cfg.yaml")
 	if err := os.WriteFile(path, []byte(`

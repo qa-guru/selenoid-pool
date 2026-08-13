@@ -47,13 +47,18 @@ Same logical session, many runs — no overwrite. Toggle recording per run via `
 
 | Method | Path | Body |
 |--------|------|------|
+| GET | `/` | — (same as `/health`; stand URL gate) |
 | GET | `/health` | — |
 | GET | `/pool/slots` | — |
-| POST | `/pool/reserve` | `{"protocol":"webdriver","browser":"chrome","owner":"jenkins-42"}` |
+| POST | `/pool/reserve` | `{"protocol":"webdriver","browser":"chrome","owner":"jenkins-42"}` · hub adds `"loopback":true` |
 | POST | `/pool/release` | `{"slotId":"pool-chrome-1"}` |
 | POST | `/pool/preopen` | `{"slotId":"...","url":"https://..."}` |
 | POST | `/pool/video/start` | `{"slotId":"...","sessionId":"..."}` |
 | POST | `/pool/video/stop` | `{"slotId":"..."}` |
+
+`loopback: true` (hub-on-host): only slots with a loopback WebDriver URL are reserved (`webdriver_url` already `127.0.0.1`/`localhost`/`::1`, or `webdriver_url_loopback`). Response `webdriverUrl` is that loopback address. No matching slot → **409**. Jenkins/box2 omit `loopback` and keep docker-DNS URLs.
+
+Hub-attach operator guide (Chrome WD, loopback reserve, cold fallback): [HUB-ATTACH.md on qa-guru/selenoid](https://github.com/qa-guru/selenoid/blob/main/docs/HUB-ATTACH.md).
 
 ## Quick start
 
@@ -123,8 +128,12 @@ docker compose -f docker-compose.hub.yml up -d --build
 # hub flag: -warm-pool-url http://127.0.0.1:9090
 ```
 
-Configs: `docker-compose.hub.yml` + `config.hub.yaml`. Jenkins attach path stays on box2 (`docker-compose.min.yml`).
+Configs: `docker-compose.hub.yml` + `config.hub.yaml`. Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
+
+## Hub-attach (Chrome WD)
+
+Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /pool/reserve` with `"loopback":true`. Local compose (`config.local.yaml` + published `14441/14442`) is attach-ready. Box1 `config.hub.yaml` has docker-DNS only → 409 → cold until loopback URLs **and** published WD ports exist. Do not treat this repo change as a prod deploy.
 
 ## Status
 
-Go rewrite of the original Python/Flask PoC. Hub polls orchestrator for UI WARM; session routing through the hub is still a follow-up.
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is implemented (loopback slots + cold fallback). Playwright slots, nginx `/pool/*`, Box2 Jenkins jobs — unchanged.
