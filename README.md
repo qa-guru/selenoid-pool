@@ -4,20 +4,19 @@ Protocol-agnostic warm browser pool for fast CI UI tests.
 
 Slots expose the same HTTP warm API whether the browser is **WebDriver** ([`browser-image/webdriver`](../browser-image/webdriver/README.md)) or **Playwright** ([`browser-image/playwright`](../browser-image/playwright/README.md)). The orchestrator only knows `warm_url` + curl.
 
-## Architecture
+## Architecture (live: hub-attach)
 
 ```
-Jenkins job start
-    │
-    ├─ POST /pool/reserve          → slotId, webdriverUrl / playwrightWsUrl
-    ├─ POST /pool/preopen {url}    → curl slot /warm/goto  (parallel with Gradle)
-    ├─ POST /pool/video/start      → optional, on demand
-    │
-    ├─ ./gradlew test -Dwarm_driver=true ...
-    │
-    └─ POST /pool/video/stop
-       POST /pool/release
+Selenide / Jenkins  →  hub POST /wd/hub/session  (Chrome WD, no video/VNC/HAR)
+                         │
+                         ├─ POST /pool/reserve {loopback:true}
+                         │    200 + 127.0.0.1:14441|14442 → proxy New Session
+                         │    session end → POST /pool/release (slot stays up)
+                         │
+                         └─ 409 / down → cold Docker
 ```
+
+Jenkins job: [reference-app-tests-pipeline-java-warm-pool](https://jenkins.qa.guru/job/reference-app-tests-pipeline-java-warm-pool/). Operator guide: [HUB-ATTACH.md](https://github.com/qa-guru/selenoid/blob/main/docs/HUB-ATTACH.md).
 
 ## Warm API contract (on each slot, port `8080`)
 
@@ -86,24 +85,16 @@ docker compose -f docker-compose.example.yml up --build
 
 The orchestrator image is a multi-stage static Go binary on `scratch`.
 
-## Jenkins: preopen before Gradle
+## Backlog: Jenkins preopen / reuse-session
 
-See [`scripts/jenkins-preopen.example.sh`](scripts/jenkins-preopen.example.sh).
+**Not hub-attach.** Hub `POST /session` creates a **new** ChromeDriver session (`about:blank`); a preopened page does not survive.
 
-```bash
-export WARM_POOL_URL=http://127.0.0.1:9090
-export PREOPEN_URL=https://your-app/login.html?ru
-./scripts/jenkins-preopen.example.sh &
-./gradlew test --tests 'tests.LoginTests.successfulAuthorizationTest' -Dwarm_driver=true
-```
+A separate mode (Jenkins `reserve` + `preopen` during Gradle → test reuses that WD session) is parked. Scripts stay as a starting point — do not wire them into the hub-attach job:
 
-Gradle flags (planned in tests-java):
+- [`scripts/jenkins-preopen.example.sh`](scripts/jenkins-preopen.example.sh)
+- [`scripts/preopen-login.sh`](scripts/preopen-login.sh) (default `PREOPEN_URL` = teaching `/login` on autotests.ai/stack)
 
-| Flag | Meaning |
-|------|---------|
-| `-Dwarm_driver=true` | Use reserved slot instead of cold Selenoid |
-| `-Dpreopen_url=` | Skip `open()` if page already loaded (empty = disabled) |
-| `-Dwarm_slot_id=` | Slot from orchestrator reserve |
+Planned tests-java flags (not canon): `-Dwarm_driver=true`, `-Dpreopen_url=`, `-Dwarm.sessionId=`.
 
 ## Slot environment
 
@@ -136,4 +127,4 @@ Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /
 
 ## Status
 
-Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is implemented (loopback slots + cold fallback). Playwright slots, nginx `/pool/*`, Box2 Jenkins jobs — unchanged.
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is live (loopback slots + cold fallback). Jenkins preopen / reuse-session is **backlog**. Playwright slots, nginx `/pool/*`, Box2 Jenkins jobs — unchanged.
