@@ -5,7 +5,7 @@
 set -euo pipefail
 
 WD_URL="${WARM_WD_URL:-http://warm-chrome-1:4444}"
-PREOPEN_URL="${PREOPEN_URL:-https://reference-app.autotests.ai/login}"
+PREOPEN_URL="${PREOPEN_URL:-https://autotests.ai/stack/backend-java-spring/frontend-typescript-react/login}"
 CAPS='{"capabilities":{"alwaysMatch":{"browserName":"chrome","goog:chromeOptions":{"args":["--headless=new","--disable-dev-shm-usage","--window-size=1740,1080"]}}}}'
 ENV_OUT="${WARM_SESSION_ENV:-warm-session.env}"
 
