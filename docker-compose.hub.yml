@@ -5,28 +5,34 @@
 #   docker compose -f docker-compose.hub.yml up -d
 services:
   warm-chrome-1:
-    image: qaguru/webdriver-chrome:149-min
+    image: qaguru/webdriver-chrome:149
     container_name: warm-chrome-1
     restart: unless-stopped
     environment:
       WARM_SLOT_ID: pool-chrome-1
       WARM_SESSION_ID: pool-chrome-1
+      ENABLE_VNC: "true"
     ports:
       - "127.0.0.1:14441:4444"
-    shm_size: "256m"
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
     networks:
       - selenoid-warm
 
   warm-chrome-2:
-    image: qaguru/webdriver-chrome:149-min
+    image: qaguru/webdriver-chrome:149
     container_name: warm-chrome-2
     restart: unless-stopped
     environment:
       WARM_SLOT_ID: pool-chrome-2
       WARM_SESSION_ID: pool-chrome-2
+      ENABLE_VNC: "true"
     ports:
       - "127.0.0.1:14442:4444"
-    shm_size: "256m"
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
     networks:
       - selenoid-warm
 

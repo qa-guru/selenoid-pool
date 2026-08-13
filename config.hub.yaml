@@ -1,10 +1,9 @@
-# Warm pool on hub host (box1). Orchestrator + chrome-min for UI WARM + hub-attach.
+# Warm pool on hub host (box1). Orchestrator + chrome 149 for UI WARM + hub-attach.
 # Hub: -warm-pool-url http://127.0.0.1:9090
 #
 # Loopback WD ports are published on the host only (127.0.0.1:14441/14442).
-# Hub POST /pool/reserve {loopback:true} gets webdriverUrlLoopback → attach.
-# docker-DNS webdriver_url stays for in-network clients (not used by host hub).
-# min image has no warm-api (8080); /pool/release reset is best-effort.
+# Full 149 image + ENABLE_VNC=true starts Xvfb (5900 not published).
+# shm 2g matches browsers-production.json chrome 149.0.
 
 slots:
   - id: pool-chrome-1
