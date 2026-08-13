@@ -1,26 +1,31 @@
 # Warm pool next to Selenoid hub (box1-selenoid).
-# Hub binary on host probes orchestrator via -warm-pool-url http://127.0.0.1:9090
+# Hub binary on host: -warm-pool-url http://127.0.0.1:9090
+# Chrome WD hub-attach: published loopback 14441/14442 (host only, not public).
 #
 #   docker compose -f docker-compose.hub.yml up -d
 services:
   warm-chrome-1:
-    image: qaguru/webdriver-chrome:148-min
+    image: qaguru/webdriver-chrome:149-min
     container_name: warm-chrome-1
     restart: unless-stopped
     environment:
       WARM_SLOT_ID: pool-chrome-1
       WARM_SESSION_ID: pool-chrome-1
+    ports:
+      - "127.0.0.1:14441:4444"
     shm_size: "256m"
     networks:
       - selenoid-warm
 
   warm-chrome-2:
-    image: qaguru/webdriver-chrome:148-min
+    image: qaguru/webdriver-chrome:149-min
     container_name: warm-chrome-2
     restart: unless-stopped
     environment:
       WARM_SLOT_ID: pool-chrome-2
       WARM_SESSION_ID: pool-chrome-2
+    ports:
+      - "127.0.0.1:14442:4444"
     shm_size: "256m"
     networks:
       - selenoid-warm

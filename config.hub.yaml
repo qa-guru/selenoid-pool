@@ -1,9 +1,10 @@
-# Warm pool on hub host (box1). Orchestrator + chrome-min for UI WARM metrics.
+# Warm pool on hub host (box1). Orchestrator + chrome-min for UI WARM + hub-attach.
 # Hub: -warm-pool-url http://127.0.0.1:9090
 #
-# Hub-attach (Chrome WD) needs published loopback WD ports + webdriver_url_loopback.
-# Until those exist, hub POST /pool/reserve with loopback=true returns 409 → cold Docker.
-# See qa-guru/selenoid docs/HUB-ATTACH.md — do not enable attach via prod deploy in this cut.
+# Loopback WD ports are published on the host only (127.0.0.1:14441/14442).
+# Hub POST /pool/reserve {loopback:true} gets webdriverUrlLoopback → attach.
+# docker-DNS webdriver_url stays for in-network clients (not used by host hub).
+# min image has no warm-api (8080); /pool/release reset is best-effort.
 
 slots:
   - id: pool-chrome-1
@@ -12,6 +13,7 @@ slots:
     session_id: pool-chrome-1
     warm_url: http://warm-chrome-1:4444
     webdriver_url: http://warm-chrome-1:4444/
+    webdriver_url_loopback: http://127.0.0.1:14441/
 
   - id: pool-chrome-2
     protocol: webdriver
@@ -19,3 +21,4 @@ slots:
     session_id: pool-chrome-2
     warm_url: http://warm-chrome-2:4444
     webdriver_url: http://warm-chrome-2:4444/
+    webdriver_url_loopback: http://127.0.0.1:14442/
