@@ -132,7 +132,7 @@ Configs: `docker-compose.hub.yml` + `config.hub.yaml`. Jenkins path stays on box
 
 ## Hub-attach (Chrome WD)
 
-Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /pool/reserve` with `"loopback":true`. Local compose (`config.local.yaml` + published `14441/14442`) is attach-ready. Box1 `config.hub.yaml` has docker-DNS only → 409 → cold until loopback URLs **and** published WD ports exist. Do not treat this repo change as a prod deploy.
+Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /pool/reserve` with `"loopback":true`. Local compose (`config.local.yaml` + published `14441/14442`) is attach-ready. Box1 `config.hub.yaml` has docker-DNS only → 409 → cold until loopback URLs **and** published WD ports exist. Do not treat this repo change as enabling attach on box1: `config.hub.yaml` stays docker-DNS only. Rebuild the orchestrator so `loopback:true` returns 409 instead of a docker-DNS URL.
 
 ## Status
 
