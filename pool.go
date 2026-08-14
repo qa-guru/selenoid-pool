@@ -16,6 +16,7 @@ type Slot struct {
 	ID                      string
 	Protocol                string
 	Browser                 string
+	Pool                    string
 	WarmURL                 string
 	SessionID               string
 	WebdriverURL            *string
@@ -30,6 +31,7 @@ type slotPayload struct {
 	ID                      string  `json:"id"`
 	Protocol                string  `json:"protocol"`
 	Browser                 string  `json:"browser"`
+	Pool                    string  `json:"pool"`
 	SessionID               string  `json:"sessionId"`
 	WarmURL                 string  `json:"warmUrl"`
 	WebdriverURL            *string `json:"webdriverUrl"`
@@ -56,6 +58,7 @@ func (s *Slot) payloadFor(loopback bool) slotPayload {
 		ID:                      s.ID,
 		Protocol:                s.Protocol,
 		Browser:                 s.Browser,
+		Pool:                    s.Pool,
 		SessionID:               s.SessionID,
 		WarmURL:                 s.WarmURL,
 		WebdriverURL:            wd,
@@ -123,13 +126,21 @@ func (p *Pool) byID(id string) *Slot {
 	return nil
 }
 
-// available returns unreserved slots, optionally filtered by protocol/browser.
+func (s *Slot) isHot() bool {
+	return strings.EqualFold(s.Pool, "hot")
+}
+
+// available returns unreserved warm slots, optionally filtered by protocol/browser.
 // Empty filter strings mean "no filter", matching the Python truthiness check.
 // needLoopback keeps only slots the host hub can dial (127.0.0.1 / localhost / ::1).
+// Hot slots (pool=hot) are excluded — reserve them by slotId.
 func (p *Pool) available(protocol, browser string, needLoopback bool) []*Slot {
 	var result []*Slot
 	for _, slot := range p.slots {
 		if slot.ReservedBy != nil {
+			continue
+		}
+		if slot.isHot() {
 			continue
 		}
 		if protocol != "" && slot.Protocol != protocol {
@@ -150,6 +161,7 @@ type rawSlot struct {
 	ID                      string  `yaml:"id"`
 	Protocol                string  `yaml:"protocol"`
 	Browser                 string  `yaml:"browser"`
+	Pool                    string  `yaml:"pool"`
 	WarmURL                 string  `yaml:"warm_url"`
 	SessionID               string  `yaml:"session_id"`
 	WebdriverURL            *string `yaml:"webdriver_url"`
@@ -196,11 +208,16 @@ func loadPool(configPath string) (*Pool, error) {
 		if sessionID == "" {
 			sessionID = item.ID
 		}
+		poolName := strings.TrimSpace(item.Pool)
+		if poolName == "" {
+			poolName = "warm"
+		}
 
 		slots = append(slots, &Slot{
 			ID:                      item.ID,
 			Protocol:                protocol,
 			Browser:                 browser,
+			Pool:                    poolName,
 			WarmURL:                 strings.TrimRight(item.WarmURL, "/"),
 			SessionID:               sessionID,
 			WebdriverURL:            item.WebdriverURL,

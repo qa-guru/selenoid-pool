@@ -543,6 +543,7 @@ slots:
   - id: pool-hot-chrome-min-1
     protocol: webdriver
     browser: chrome
+    pool: hot
     warm_url: ` + warm.URL + `
     webdriver_url_loopback: http://127.0.0.1:16440/
 `
@@ -574,6 +575,79 @@ slots:
 	if slot["webdriverUrl"] != "http://127.0.0.1:16440/" {
 		t.Fatalf("webdriverUrl=%v", slot["webdriverUrl"])
 	}
+	if slot["pool"] != "hot" {
+		t.Fatalf("pool=%v want hot", slot["pool"])
+	}
+}
+
+func TestAvailableSkipsHotSlots(t *testing.T) {
+	stub := &warmStub{}
+	warm := httptest.NewServer(stub.handler())
+	t.Cleanup(warm.Close)
+
+	content := `
+slots:
+  - id: pool-hot-chrome-min-1
+    protocol: webdriver
+    browser: chrome
+    pool: hot
+    warm_url: ` + warm.URL + `
+    webdriver_url_loopback: http://127.0.0.1:16440/
+  - id: pool-chrome-1
+    protocol: webdriver
+    browser: chrome
+    warm_url: ` + warm.URL + `
+    webdriver_url_loopback: http://127.0.0.1:14441/
+`
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := loadPool(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pool.slots[0].Pool != "hot" || pool.slots[1].Pool != "warm" {
+		t.Fatalf("pool tags: hot=%q warm=%q", pool.slots[0].Pool, pool.slots[1].Pool)
+	}
+	warmOnly := pool.available("webdriver", "chrome", true)
+	if len(warmOnly) != 1 || warmOnly[0].ID != "pool-chrome-1" {
+		t.Fatalf("warm-only=%v", warmOnly)
+	}
+
+	ts := httptest.NewServer((&server{pool: pool}).routes())
+	t.Cleanup(ts.Close)
+
+	code, body := doJSON(t, http.MethodGet, ts.URL+"/pool/slots", nil)
+	if code != 200 {
+		t.Fatalf("list: %d %v", code, body)
+	}
+	list, _ := body["_list"].([]any)
+	if len(list) != 2 {
+		t.Fatalf("slots list=%v", list)
+	}
+	hotJSON := list[0].(map[string]any)
+	warmJSON := list[1].(map[string]any)
+	if hotJSON["pool"] != "hot" || warmJSON["pool"] != "warm" {
+		t.Fatalf("json pool hot=%v warm=%v", hotJSON["pool"], warmJSON["pool"])
+	}
+
+	code, body = doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{
+		"protocol": "webdriver",
+		"browser":  "chrome",
+		"owner":    "hub-1",
+		"loopback": true,
+	})
+	if code != 200 {
+		t.Fatalf("reserve: %d %v", code, body)
+	}
+	slot := body["slot"].(map[string]any)
+	if slot["id"] != "pool-chrome-1" {
+		t.Fatalf("warm reserve must skip hot, got %v", slot["id"])
+	}
+	if slot["pool"] != "warm" {
+		t.Fatalf("pool=%v", slot["pool"])
+	}
 }
 
 func TestLoadPoolDefaults(t *testing.T) {
@@ -592,6 +666,9 @@ slots:
 	s := pool.slots[0]
 	if s.Protocol != "webdriver" || s.Browser != "chrome" || s.SessionID != "bare" {
 		t.Fatalf("defaults: %+v", s)
+	}
+	if s.Pool != "warm" {
+		t.Fatalf("default pool=%q want warm", s.Pool)
 	}
 	if s.WarmURL != "http://example:8080" {
 		t.Fatalf("trim slash: %q", s.WarmURL)
