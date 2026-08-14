@@ -89,12 +89,10 @@ The orchestrator image is a multi-stage static Go binary on `scratch`.
 
 **Not hub-attach.** Hub `POST /session` creates a **new** ChromeDriver session (`about:blank`); a preopened page does not survive.
 
-A separate mode (Jenkins `reserve` + `preopen` during Gradle → test reuses that WD session) is parked. Scripts stay as a starting point — do not wire them into the hub-attach job:
+A separate mode (Jenkins `reserve` + WD preopen during Gradle → test reuses that WD session) is parked. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only — no TestBase/LoginPage copies). Scripts stay as a starting point — do not wire them into the hub-attach job:
 
 - [`scripts/jenkins-preopen.example.sh`](scripts/jenkins-preopen.example.sh)
 - [`scripts/preopen-login.sh`](scripts/preopen-login.sh) (default `PREOPEN_URL` = teaching `/login` on autotests.ai/stack)
-
-Planned tests-java flags (not canon): `-Dwarm_driver=true`, `-Dpreopen_url=`, `-Dwarm.sessionId=`.
 
 ## Slot environment
 

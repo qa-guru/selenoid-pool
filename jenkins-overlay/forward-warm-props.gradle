@@ -1,18 +1,8 @@
-// Init script: forward warm -D* into the test JVM and never UP-TO-DATE the Test task.
+// Forward reuse-session -D* into the test JVM. Do not drop into stacks/.
 gradle.projectsLoaded {
   rootProject.allprojects {
     tasks.withType(Test).configureEach {
-      [
-        'warm.sessionId',
-        'skipOpen',
-        'remoteUrl',
-        'closeBrowserAfterEach',
-        'closeBrowserAfterAll',
-        'allureReportMode',
-        'enableHar',
-        'enableVideo',
-        'enableVnc',
-      ].each { k ->
+      ['warm.sessionId', 'skipOpen', 'remoteUrl', 'closeBrowserAfterEach', 'closeBrowserAfterAll'].each { k ->
         def v = System.getProperty(k)
         if (v != null) {
           systemProperty k, v
