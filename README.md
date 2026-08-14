@@ -102,7 +102,7 @@ The orchestrator image is a multi-stage static Go binary on `scratch`.
 
 **Not hub-attach.** Hub `POST /session` creates a **new** ChromeDriver session (`about:blank`); a preopened page does not survive.
 
-Hot 2/2 (`:149-min` + PW `1.61.1-min`, ports **14641/14651**) bypasses the hub. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only). One script:
+Hot 2/2 (`:149-min` + PW `1.61.1-min`, ports **16440/16441**) bypasses the hub. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only). One script:
 
 - [`scripts/hot-reuse-session.sh`](scripts/hot-reuse-session.sh) — reserve hot slot → WD `POST /url` or PW WS → trap `DELETE`+`release` (idle ≠ `/login`)
 

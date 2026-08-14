@@ -6,7 +6,7 @@ Java helper to attach Selenide to an existing ChromeDriver session. **Not hub-at
 |--|-------------------|--------------------|
 | Client | Hub `POST /session` → New Session on a warm container | Bypass hub: `WarmRemoteWebDriver.attach` / PW `connect` |
 | Session | New, `about:blank` | Same UUID / WS; page already on `PREOPEN_URL` |
-| Slots | 4/4 including headed `:149` on `14441/14442` | **2/2 `-min` only**, ports `14641` (WD) / `14651` (PW) |
+| Slots | 4/4 including headed `:149` on `14441/14442` | **2/2 `-min` only**, ports `16440` (WD) / `16441` (PW) |
 | `-Dwarm.sessionId` | unused | ChromeDriver **UUID**, not `pool-hot-chrome-min-1` |
 
 Do not copy this into the generator template or the live hub-attach job.

@@ -11,8 +11,8 @@ PREOPEN_URL="${PREOPEN_URL:-https://autotests.ai/stack/backend-java-spring/front
 OWNER="${BUILD_TAG:-hot-local}"
 HOT_WD_SLOT="${HOT_WD_SLOT:-pool-hot-chrome-min-1}"
 HOT_PW_SLOT="${HOT_PW_SLOT:-pool-hot-pw-min-1}"
-HOT_WD_URL="${HOT_WD_URL:-http://127.0.0.1:14641}"
-HOT_PW_WS="${HOT_PW_WS:-ws://127.0.0.1:14651/}"
+HOT_WD_URL="${HOT_WD_URL:-http://127.0.0.1:16440}"
+HOT_PW_WS="${HOT_PW_WS:-ws://127.0.0.1:16441/}"
 PROTOCOL="${1:-both}"
 REFRESH=0
 if [[ "${1:-}" == "--refresh" ]]; then

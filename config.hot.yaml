@@ -1,20 +1,23 @@
 # Hot 2/2 slots for the host orchestrator (stand :9090).
 # Merge into config.local.yaml (already includes these ids).
-# Ports ≠ warm 14441/14442/14501/14502. Do not idle /login (trap DELETE+release).
+# Ports 16440 (WD) / 16441 (PW). ≠ warm 14441/14442/14501/14502.
+# Do not idle /login (trap DELETE+release).
 
 slots:
   - id: pool-hot-chrome-min-1
     protocol: webdriver
     browser: chrome
+    pool: hot
     session_id: pool-hot-chrome-min-1
-    warm_url: http://127.0.0.1:14641
-    webdriver_url: http://127.0.0.1:14641/
-    webdriver_url_loopback: http://127.0.0.1:14641/
+    warm_url: http://127.0.0.1:16440
+    webdriver_url: http://127.0.0.1:16440/
+    webdriver_url_loopback: http://127.0.0.1:16440/
 
   - id: pool-hot-pw-min-1
     protocol: playwright
     browser: chromium
+    pool: hot
     session_id: pool-hot-pw-min-1
-    warm_url: http://127.0.0.1:14651
-    playwright_ws_url: ws://127.0.0.1:14651/
-    playwright_ws_url_loopback: ws://127.0.0.1:14651/
+    warm_url: http://127.0.0.1:16441
+    playwright_ws_url: ws://127.0.0.1:16441/
+    playwright_ws_url_loopback: ws://127.0.0.1:16441/

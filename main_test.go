@@ -544,7 +544,7 @@ slots:
     protocol: webdriver
     browser: chrome
     warm_url: ` + warm.URL + `
-    webdriver_url_loopback: http://127.0.0.1:14641/
+    webdriver_url_loopback: http://127.0.0.1:16440/
 `
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -571,7 +571,7 @@ slots:
 	if slot["id"] != "pool-hot-chrome-min-1" {
 		t.Fatalf("slotId pin failed, got %v", slot["id"])
 	}
-	if slot["webdriverUrl"] != "http://127.0.0.1:14641/" {
+	if slot["webdriverUrl"] != "http://127.0.0.1:16440/" {
 		t.Fatalf("webdriverUrl=%v", slot["webdriverUrl"])
 	}
 }

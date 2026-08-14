@@ -1,4 +1,5 @@
 # Hot 2/2 aggressive pool — separate from warm hub-attach.
+# Host ports 16440+ : WD 16440, PW 16441.
 # Do not publish 14441/14442 (warm WD) or 14501/14502 (warm PW).
 # Images: only -min, shm 2g. Session/page preopen is scripts/hot-reuse-session.sh
 # (bypasses the hub). Orchestrator stays the :9090 stand — do not --stop it.
@@ -12,7 +13,7 @@ services:
       WARM_SLOT_ID: pool-hot-chrome-min-1
       WARM_SESSION_ID: pool-hot-chrome-min-1
     ports:
-      - "127.0.0.1:14641:4444"
+      - "127.0.0.1:16440:4444"
     shm_size: "2gb"
     tmpfs:
       - /tmp:size=512m
@@ -24,7 +25,7 @@ services:
       WARM_SLOT_ID: pool-hot-pw-min-1
       WARM_SESSION_ID: pool-hot-pw-min-1
     ports:
-      - "127.0.0.1:14651:3000"
+      - "127.0.0.1:16441:3000"
     shm_size: "2gb"
     tmpfs:
       - /tmp:size=512m
