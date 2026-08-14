@@ -134,15 +134,41 @@ func (s *server) reserve(w http.ResponseWriter, r *http.Request) {
 		owner = "anonymous"
 	}
 	loopback := boolField(body, "loopback")
+	wantID, _ := stringField(body, "slotId")
 
 	s.pool.mu.Lock()
-	candidates := s.pool.available(protocol, browser, loopback)
-	if len(candidates) == 0 {
-		s.pool.mu.Unlock()
-		writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
-		return
+	var slot *Slot
+	if wantID != "" {
+		slot = s.pool.byID(wantID)
+		if slot == nil || slot.ReservedBy != nil {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		if protocol != "" && slot.Protocol != protocol {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		if browser != "" && slot.Browser != browser {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		if loopback && !slot.hasLoopbackEndpoint() {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+	} else {
+		candidates := s.pool.available(protocol, browser, loopback)
+		if len(candidates) == 0 {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		slot = candidates[0]
 	}
-	slot := candidates[0]
 	slot.ReservedBy = &owner
 	payload := slot.payloadFor(loopback)
 	s.pool.mu.Unlock()

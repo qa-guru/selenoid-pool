@@ -102,10 +102,11 @@ The orchestrator image is a multi-stage static Go binary on `scratch`.
 
 **Not hub-attach.** Hub `POST /session` creates a **new** ChromeDriver session (`about:blank`); a preopened page does not survive.
 
-Hot (Jenkins `reserve` + WD preopen → test reuses that WD session, bypassing the hub) is window 03. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only — no TestBase/LoginPage copies). Scripts stay as a starting point — do not wire them into the hub-attach job:
+Hot 2/2 (`:149-min` + PW `1.61.1-min`, ports **14641/14651**) bypasses the hub. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only). One script:
 
-- [`scripts/jenkins-preopen.example.sh`](scripts/jenkins-preopen.example.sh)
-- [`scripts/preopen-login.sh`](scripts/preopen-login.sh) (default `PREOPEN_URL` = teaching `/login` on autotests.ai/stack)
+- [`scripts/hot-reuse-session.sh`](scripts/hot-reuse-session.sh) — reserve hot slot → WD `POST /url` or PW WS → trap `DELETE`+`release` (idle ≠ `/login`)
+
+Do not wire this into the hub-attach job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/). Compose: [`docker-compose.hot.yml`](docker-compose.hot.yml) (does not change `docker-compose.hub.yml`).
 
 ## Slot environment
 
@@ -138,4 +139,4 @@ Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /
 
 ## Status
 
-Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. nginx `/pool/*`, Box2 Jenkins jobs — unchanged. **Hot** pool (reuse-session / preopen) is window 03. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** 2/2 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + [`scripts/hot-reuse-session.sh`](scripts/hot-reuse-session.sh) (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).

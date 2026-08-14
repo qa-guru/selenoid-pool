@@ -1,0 +1,30 @@
+# Hot 2/2 aggressive pool — separate from warm hub-attach.
+# Do not publish 14441/14442 (warm WD) or 14501/14502 (warm PW).
+# Images: only -min, shm 2g. Session/page preopen is scripts/hot-reuse-session.sh
+# (bypasses the hub). Orchestrator stays the :9090 stand — do not --stop it.
+#
+#   docker compose -f docker-compose.hot.yml up -d
+services:
+  hot-chrome-min-1:
+    image: qaguru/webdriver-chrome:149-min
+    container_name: hot-chrome-min-1
+    environment:
+      WARM_SLOT_ID: pool-hot-chrome-min-1
+      WARM_SESSION_ID: pool-hot-chrome-min-1
+    ports:
+      - "127.0.0.1:14641:4444"
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
+
+  hot-pw-min-1:
+    image: qaguru/playwright-chromium:1.61.1-min
+    container_name: hot-pw-min-1
+    environment:
+      WARM_SLOT_ID: pool-hot-pw-min-1
+      WARM_SESSION_ID: pool-hot-pw-min-1
+    ports:
+      - "127.0.0.1:14651:3000"
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m

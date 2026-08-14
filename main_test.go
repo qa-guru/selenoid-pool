@@ -528,6 +528,54 @@ slots:
 	}
 }
 
+func TestReserveSlotIdPinsHotSlot(t *testing.T) {
+	stub := &warmStub{}
+	warm := httptest.NewServer(stub.handler())
+	t.Cleanup(warm.Close)
+
+	content := `
+slots:
+  - id: pool-chrome-1
+    protocol: webdriver
+    browser: chrome
+    warm_url: ` + warm.URL + `
+    webdriver_url_loopback: http://127.0.0.1:14441/
+  - id: pool-hot-chrome-min-1
+    protocol: webdriver
+    browser: chrome
+    warm_url: ` + warm.URL + `
+    webdriver_url_loopback: http://127.0.0.1:14641/
+`
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := loadPool(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer((&server{pool: pool}).routes())
+	t.Cleanup(ts.Close)
+
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{
+		"protocol": "webdriver",
+		"browser":  "chrome",
+		"owner":    "hot-1",
+		"loopback": true,
+		"slotId":   "pool-hot-chrome-min-1",
+	})
+	if code != 200 {
+		t.Fatalf("reserve: %d %v", code, body)
+	}
+	slot := body["slot"].(map[string]any)
+	if slot["id"] != "pool-hot-chrome-min-1" {
+		t.Fatalf("slotId pin failed, got %v", slot["id"])
+	}
+	if slot["webdriverUrl"] != "http://127.0.0.1:14641/" {
+		t.Fatalf("webdriverUrl=%v", slot["webdriverUrl"])
+	}
+}
+
 func TestLoadPoolDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cfg.yaml")
 	if err := os.WriteFile(path, []byte(`
