@@ -4,6 +4,16 @@ Protocol-agnostic warm browser pool for fast CI UI tests.
 
 Slots expose the same HTTP warm API whether the browser is **WebDriver** ([`browser-image/webdriver`](../browser-image/webdriver/README.md)) or **Playwright** ([`browser-image/playwright`](../browser-image/playwright/README.md)). The orchestrator only knows `warm_url` + curl.
 
+## Pools
+
+| Pool | Slots | Client | Browser |
+|------|-------|--------|---------|
+| **Cold** (default, live) | 0 warm — hub `docker run` from `browsers.json` | Hub `POST /session` | Catalog |
+| **Warm** (this repo, hub-attach) | Container up; **New Session** on that node | Hub → `POST /pool/reserve` | WD + PW (target 4/4) |
+| **Hot** | Session + page already live | Bypass hub (UUID / WS) | Only `-min` — window 03 |
+
+Cold is the existing Selenoid path and the hub-attach fallback (409 / not Chrome WD / video/VNC/HAR). Warm is hub-attach. Hot (reuse-session, `PREOPEN_URL`, `WarmRemote`) is **not** this README’s live contract — see window 03.
+
 ## Architecture (live: hub-attach)
 
 ```
@@ -85,11 +95,11 @@ docker compose -f docker-compose.example.yml up --build
 
 The orchestrator image is a multi-stage static Go binary on `scratch`.
 
-## Backlog: Jenkins preopen / reuse-session
+## Backlog: hot pool (window 03)
 
 **Not hub-attach.** Hub `POST /session` creates a **new** ChromeDriver session (`about:blank`); a preopened page does not survive.
 
-A separate mode (Jenkins `reserve` + WD preopen during Gradle → test reuses that WD session) is parked. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only — no TestBase/LoginPage copies). Scripts stay as a starting point — do not wire them into the hub-attach job:
+Hot (Jenkins `reserve` + WD preopen → test reuses that WD session, bypassing the hub) is window 03. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only — no TestBase/LoginPage copies). Scripts stay as a starting point — do not wire them into the hub-attach job:
 
 - [`scripts/jenkins-preopen.example.sh`](scripts/jenkins-preopen.example.sh)
 - [`scripts/preopen-login.sh`](scripts/preopen-login.sh) (default `PREOPEN_URL` = teaching `/login` on autotests.ai/stack)
@@ -125,4 +135,4 @@ Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /
 
 ## Status
 
-Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is live (loopback slots + cold fallback). Jenkins preopen / reuse-session is **backlog**. Playwright slots, nginx `/pool/*`, Box2 Jenkins jobs — unchanged.
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is live (loopback slots + **cold** fallback). Playwright slots, nginx `/pool/*`, Box2 Jenkins jobs — unchanged. **Hot** pool (reuse-session / preopen) is window 03.
