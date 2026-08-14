@@ -1,9 +1,9 @@
-# Warm pool on hub host (box1). Orchestrator + chrome 149 for UI WARM + hub-attach.
+# Warm 4/4 on hub host (box1). Orchestrator + slots for UI WARM + hub-attach.
 # Hub: -warm-pool-url http://127.0.0.1:9090
 #
-# Loopback WD ports are published on the host only (127.0.0.1:14441/14442).
-# Full 149 image + ENABLE_VNC=true starts Xvfb (5900 not published).
-# shm 2g matches browsers-production.json chrome 149.0.
+# Chrome WD hub-attach (loopback): headed 14441 first, then 149-min 14442 (shm 2g).
+# Playwright slots are up; hub PW remains cold (ADR). Loopback WS is for window 03.
+# Do not preopen /login on these slots.
 
 slots:
   - id: pool-chrome-1
@@ -21,3 +21,19 @@ slots:
     warm_url: http://warm-chrome-2:4444
     webdriver_url: http://warm-chrome-2:4444/
     webdriver_url_loopback: http://127.0.0.1:14442/
+
+  - id: pool-pw-chromium-1
+    protocol: playwright
+    browser: chromium
+    session_id: pool-pw-chromium-1
+    warm_url: http://warm-pw-1:3000
+    playwright_ws_url: ws://warm-pw-1:3000/
+    playwright_ws_url_loopback: ws://127.0.0.1:14501/
+
+  - id: pool-pw-chromium-min-1
+    protocol: playwright
+    browser: chromium
+    session_id: pool-pw-chromium-min-1
+    warm_url: http://warm-pw-min-1:3000
+    playwright_ws_url: ws://warm-pw-min-1:3000/
+    playwright_ws_url_loopback: ws://127.0.0.1:14502/

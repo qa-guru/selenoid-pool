@@ -437,6 +437,95 @@ func TestIsLoopbackURL(t *testing.T) {
 	if !isLoopbackURL("http://127.0.0.1:14441/") || isLoopbackURL("http://warm-chrome-1:4444/") {
 		t.Fatal("isLoopbackURL mismatch")
 	}
+	if !isLoopbackURL("ws://127.0.0.1:14501/") || isLoopbackURL("ws://warm-pw-1:3000/") {
+		t.Fatal("isLoopbackURL ws mismatch")
+	}
+}
+
+func TestReservePlaywrightLoopbackPrefersLoopbackWS(t *testing.T) {
+	stub := &warmStub{}
+	warm := httptest.NewServer(stub.handler())
+	t.Cleanup(warm.Close)
+
+	loop := "ws://127.0.0.1:14501/"
+	content := `
+slots:
+  - id: slot-pw-1
+    protocol: playwright
+    browser: chromium
+    warm_url: ` + warm.URL + `
+    playwright_ws_url: ws://warm-pw-1:3000/
+    playwright_ws_url_loopback: ` + loop + `
+`
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := loadPool(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer((&server{pool: pool}).routes())
+	t.Cleanup(ts.Close)
+
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{
+		"protocol": "playwright",
+		"browser":  "chromium",
+		"owner":    "hot-1",
+		"loopback": true,
+	})
+	if code != 200 || body["ok"] != true {
+		t.Fatalf("reserve: %d %v", code, body)
+	}
+	slot := body["slot"].(map[string]any)
+	if slot["playwrightWsUrl"] != loop {
+		t.Fatalf("playwrightWsUrl=%v want %s", slot["playwrightWsUrl"], loop)
+	}
+}
+
+func TestReserveLoopbackChromeSkipsPlaywrightSlots(t *testing.T) {
+	stub := &warmStub{}
+	warm := httptest.NewServer(stub.handler())
+	t.Cleanup(warm.Close)
+
+	content := `
+slots:
+  - id: slot-pw-1
+    protocol: playwright
+    browser: chromium
+    warm_url: ` + warm.URL + `
+    playwright_ws_url_loopback: ws://127.0.0.1:14501/
+  - id: slot-webdriver-1
+    protocol: webdriver
+    browser: chrome
+    warm_url: ` + warm.URL + `
+    webdriver_url: http://warm-chrome-1:4444/
+    webdriver_url_loopback: http://127.0.0.1:14441/
+`
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := loadPool(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer((&server{pool: pool}).routes())
+	t.Cleanup(ts.Close)
+
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{
+		"protocol": "webdriver",
+		"browser":  "chrome",
+		"owner":    "hub-1",
+		"loopback": true,
+	})
+	if code != 200 {
+		t.Fatalf("reserve: %d %v", code, body)
+	}
+	slot := body["slot"].(map[string]any)
+	if slot["id"] != "slot-webdriver-1" {
+		t.Fatalf("hub chrome must skip PW slots, got %v", slot["id"])
+	}
 }
 
 func TestLoadPoolDefaults(t *testing.T) {

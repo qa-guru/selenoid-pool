@@ -1,12 +1,12 @@
-# Local host-side orchestrator config (ports published from slot containers).
-video_dir: ./video
+# Local host-side orchestrator (stand :9090). Ports published from slot containers.
+# Warm 4/4. Do not idle /login. Hub-attach WD uses 14441 (headed) then 14442 (min).
 
 slots:
   - id: pool-chrome-1
     protocol: webdriver
     browser: chrome
     session_id: pool-chrome-1
-    warm_url: http://127.0.0.1:18081
+    warm_url: http://127.0.0.1:14441
     webdriver_url: http://127.0.0.1:14441/
     webdriver_url_loopback: http://127.0.0.1:14441/
 
@@ -14,6 +14,22 @@ slots:
     protocol: webdriver
     browser: chrome
     session_id: pool-chrome-2
-    warm_url: http://127.0.0.1:18082
+    warm_url: http://127.0.0.1:14442
     webdriver_url: http://127.0.0.1:14442/
     webdriver_url_loopback: http://127.0.0.1:14442/
+
+  - id: pool-pw-chromium-1
+    protocol: playwright
+    browser: chromium
+    session_id: pool-pw-chromium-1
+    warm_url: http://127.0.0.1:14501
+    playwright_ws_url: ws://127.0.0.1:14501/
+    playwright_ws_url_loopback: ws://127.0.0.1:14501/
+
+  - id: pool-pw-chromium-min-1
+    protocol: playwright
+    browser: chromium
+    session_id: pool-pw-chromium-min-1
+    warm_url: http://127.0.0.1:14502
+    playwright_ws_url: ws://127.0.0.1:14502/
+    playwright_ws_url_loopback: ws://127.0.0.1:14502/

@@ -1,29 +1,46 @@
+# Example 4/4 pool (in-network). Prefer docker-compose.hub.yml / docker-compose.local.yml.
 services:
   warm-chrome-1:
-    image: qaguru/webdriver-chrome:148
+    image: qaguru/webdriver-chrome:149
     container_name: warm-chrome-1
     environment:
       WARM_SLOT_ID: pool-chrome-1
       WARM_SESSION_ID: pool-chrome-1
-      WARM_VIDEO: "true"
-    volumes:
-      - ./video:/data/video
+      ENABLE_VNC: "true"
     networks:
       - warm-pool
-    shm_size: "512m"
+    shm_size: "2gb"
 
   warm-chrome-2:
-    image: qaguru/webdriver-chrome:148
+    image: qaguru/webdriver-chrome:149-min
     container_name: warm-chrome-2
     environment:
       WARM_SLOT_ID: pool-chrome-2
       WARM_SESSION_ID: pool-chrome-2
-      WARM_VIDEO: "true"
-    volumes:
-      - ./video:/data/video
     networks:
       - warm-pool
-    shm_size: "512m"
+    shm_size: "2gb"
+
+  warm-pw-chromium-1:
+    image: qaguru/playwright-chromium:1.61.1
+    container_name: warm-pw-chromium-1
+    environment:
+      WARM_SLOT_ID: pool-pw-chromium-1
+      WARM_SESSION_ID: pool-pw-chromium-1
+      ENABLE_VNC: "true"
+    networks:
+      - warm-pool
+    shm_size: "2gb"
+
+  warm-pw-chromium-min-1:
+    image: qaguru/playwright-chromium:1.61.1-min
+    container_name: warm-pw-chromium-min-1
+    environment:
+      WARM_SLOT_ID: pool-pw-chromium-min-1
+      WARM_SESSION_ID: pool-pw-chromium-min-1
+    networks:
+      - warm-pool
+    shm_size: "2gb"
 
   orchestrator:
     build: .
@@ -39,6 +56,8 @@ services:
     depends_on:
       - warm-chrome-1
       - warm-chrome-2
+      - warm-pw-chromium-1
+      - warm-pw-chromium-min-1
 
 networks:
   warm-pool:

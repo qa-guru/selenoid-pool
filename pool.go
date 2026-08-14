@@ -13,28 +13,30 @@ import (
 // Slot mirrors orchestrator/main.py Slot. Optional fields are pointers so that
 // absent values serialize to JSON null (matching Python None).
 type Slot struct {
-	ID                   string
-	Protocol             string
-	Browser              string
-	WarmURL              string
-	SessionID            string
-	WebdriverURL         *string
-	WebdriverURLLoopback *string
-	PlaywrightWsURL      *string
-	ReservedBy           *string
+	ID                      string
+	Protocol                string
+	Browser                 string
+	WarmURL                 string
+	SessionID               string
+	WebdriverURL            *string
+	WebdriverURLLoopback    *string
+	PlaywrightWsURL         *string
+	PlaywrightWsURLLoopback *string
+	ReservedBy              *string
 }
 
 // slotPayload is the camelCase wire format returned by the orchestrator API.
 type slotPayload struct {
-	ID                   string  `json:"id"`
-	Protocol             string  `json:"protocol"`
-	Browser              string  `json:"browser"`
-	SessionID            string  `json:"sessionId"`
-	WarmURL              string  `json:"warmUrl"`
-	WebdriverURL         *string `json:"webdriverUrl"`
-	WebdriverURLLoopback *string `json:"webdriverUrlLoopback"`
-	PlaywrightWsURL      *string `json:"playwrightWsUrl"`
-	ReservedBy           *string `json:"reservedBy"`
+	ID                      string  `json:"id"`
+	Protocol                string  `json:"protocol"`
+	Browser                 string  `json:"browser"`
+	SessionID               string  `json:"sessionId"`
+	WarmURL                 string  `json:"warmUrl"`
+	WebdriverURL            *string `json:"webdriverUrl"`
+	WebdriverURLLoopback    *string `json:"webdriverUrlLoopback"`
+	PlaywrightWsURL         *string `json:"playwrightWsUrl"`
+	PlaywrightWsURLLoopback *string `json:"playwrightWsUrlLoopback"`
+	ReservedBy              *string `json:"reservedBy"`
 }
 
 func (s *Slot) payload() slotPayload {
@@ -46,16 +48,21 @@ func (s *Slot) payloadFor(loopback bool) slotPayload {
 	if loopback && s.WebdriverURLLoopback != nil && strings.TrimSpace(*s.WebdriverURLLoopback) != "" {
 		wd = s.WebdriverURLLoopback
 	}
+	ws := s.PlaywrightWsURL
+	if loopback && s.PlaywrightWsURLLoopback != nil && strings.TrimSpace(*s.PlaywrightWsURLLoopback) != "" {
+		ws = s.PlaywrightWsURLLoopback
+	}
 	return slotPayload{
-		ID:                   s.ID,
-		Protocol:             s.Protocol,
-		Browser:              s.Browser,
-		SessionID:            s.SessionID,
-		WarmURL:              s.WarmURL,
-		WebdriverURL:         wd,
-		WebdriverURLLoopback: s.WebdriverURLLoopback,
-		PlaywrightWsURL:      s.PlaywrightWsURL,
-		ReservedBy:           s.ReservedBy,
+		ID:                      s.ID,
+		Protocol:                s.Protocol,
+		Browser:                 s.Browser,
+		SessionID:               s.SessionID,
+		WarmURL:                 s.WarmURL,
+		WebdriverURL:            wd,
+		WebdriverURLLoopback:    s.WebdriverURLLoopback,
+		PlaywrightWsURL:         ws,
+		PlaywrightWsURLLoopback: s.PlaywrightWsURLLoopback,
+		ReservedBy:              s.ReservedBy,
 	}
 }
 
@@ -80,6 +87,23 @@ func (s *Slot) hasLoopbackWD() bool {
 		return true
 	}
 	return false
+}
+
+func (s *Slot) hasLoopbackPW() bool {
+	if s.PlaywrightWsURLLoopback != nil && isLoopbackURL(*s.PlaywrightWsURLLoopback) {
+		return true
+	}
+	if s.PlaywrightWsURL != nil && isLoopbackURL(*s.PlaywrightWsURL) {
+		return true
+	}
+	return false
+}
+
+func (s *Slot) hasLoopbackEndpoint() bool {
+	if s.Protocol == "playwright" {
+		return s.hasLoopbackPW()
+	}
+	return s.hasLoopbackWD()
 }
 
 // Pool is a protocol-agnostic set of warm slots. A mutex guards mutations
@@ -114,7 +138,7 @@ func (p *Pool) available(protocol, browser string, needLoopback bool) []*Slot {
 		if browser != "" && slot.Browser != browser {
 			continue
 		}
-		if needLoopback && !slot.hasLoopbackWD() {
+		if needLoopback && !slot.hasLoopbackEndpoint() {
 			continue
 		}
 		result = append(result, slot)
@@ -123,14 +147,15 @@ func (p *Pool) available(protocol, browser string, needLoopback bool) []*Slot {
 }
 
 type rawSlot struct {
-	ID                   string  `yaml:"id"`
-	Protocol             string  `yaml:"protocol"`
-	Browser              string  `yaml:"browser"`
-	WarmURL              string  `yaml:"warm_url"`
-	SessionID            string  `yaml:"session_id"`
-	WebdriverURL         *string `yaml:"webdriver_url"`
-	WebdriverURLLoopback *string `yaml:"webdriver_url_loopback"`
-	PlaywrightWsURL      *string `yaml:"playwright_ws_url"`
+	ID                      string  `yaml:"id"`
+	Protocol                string  `yaml:"protocol"`
+	Browser                 string  `yaml:"browser"`
+	WarmURL                 string  `yaml:"warm_url"`
+	SessionID               string  `yaml:"session_id"`
+	WebdriverURL            *string `yaml:"webdriver_url"`
+	WebdriverURLLoopback    *string `yaml:"webdriver_url_loopback"`
+	PlaywrightWsURL         *string `yaml:"playwright_ws_url"`
+	PlaywrightWsURLLoopback *string `yaml:"playwright_ws_url_loopback"`
 }
 
 type rawConfig struct {
@@ -173,14 +198,15 @@ func loadPool(configPath string) (*Pool, error) {
 		}
 
 		slots = append(slots, &Slot{
-			ID:                   item.ID,
-			Protocol:             protocol,
-			Browser:              browser,
-			WarmURL:              strings.TrimRight(item.WarmURL, "/"),
-			SessionID:            sessionID,
-			WebdriverURL:         item.WebdriverURL,
-			WebdriverURLLoopback: item.WebdriverURLLoopback,
-			PlaywrightWsURL:      item.PlaywrightWsURL,
+			ID:                      item.ID,
+			Protocol:                protocol,
+			Browser:                 browser,
+			WarmURL:                 strings.TrimRight(item.WarmURL, "/"),
+			SessionID:               sessionID,
+			WebdriverURL:            item.WebdriverURL,
+			WebdriverURLLoopback:    item.WebdriverURLLoopback,
+			PlaywrightWsURL:         item.PlaywrightWsURL,
+			PlaywrightWsURLLoopback: item.PlaywrightWsURLLoopback,
 		})
 	}
 
