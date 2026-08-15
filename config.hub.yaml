@@ -1,8 +1,9 @@
-# Warm 4/4 on hub host (box1). Orchestrator + slots for UI WARM + hub-attach.
+# Warm 4/4 + hot 2/2 on hub host (box1). Orchestrator + slots for UI WARM/HOT + hub-attach.
 # Hub: -warm-pool-url http://127.0.0.1:9090
 #
 # Chrome WD hub-attach (loopback): headed 14441 first, then 149-min 14442 (shm 2g).
-# Playwright slots are up; hub PW remains cold (ADR). Loopback WS is for window 03.
+# Playwright warm slots are up; hub PW remains cold (ADR). Loopback WS is for window 03.
+# Hot slots (pool: hot) are listed for metrics; hub-attach available() skips them.
 # Do not preopen /login on these slots.
 
 slots:
@@ -37,3 +38,21 @@ slots:
     warm_url: http://warm-pw-min-1:3000
     playwright_ws_url: ws://warm-pw-min-1:3000/
     playwright_ws_url_loopback: ws://127.0.0.1:14502/
+
+  - id: pool-hot-chrome-min-1
+    protocol: webdriver
+    browser: chrome
+    pool: hot
+    session_id: pool-hot-chrome-min-1
+    warm_url: http://hot-chrome-min-1:4444
+    webdriver_url: http://hot-chrome-min-1:4444/
+    webdriver_url_loopback: http://127.0.0.1:16440/
+
+  - id: pool-hot-pw-min-1
+    protocol: playwright
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-pw-min-1
+    warm_url: http://hot-pw-min-1:3000
+    playwright_ws_url: ws://hot-pw-min-1:3000/
+    playwright_ws_url_loopback: ws://127.0.0.1:16441/

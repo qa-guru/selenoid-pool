@@ -131,7 +131,7 @@ docker compose -f docker-compose.hub.yml up -d --build
 # hub flag: -warm-pool-url http://127.0.0.1:9090
 ```
 
-Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
+Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 2/2 `pool: hot` for UI HOT). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-warm`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
 
 ## Hub-attach (Chrome WD)
 
