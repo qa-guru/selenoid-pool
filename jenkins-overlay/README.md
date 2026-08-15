@@ -23,6 +23,8 @@ Do not copy this into the generator template or the live hub-attach job.
 
 Keep the **Gradle daemon + configuration-cache** already on the agent. Do not introduce JDWP. `closeBrowserAfterAll=false` so `quit()` runs in the trap after the test returns, not on wall.
 
+Jenkins stubs (disabled): `autotests-ai-multistack-tests-pipeline-{java,python,js}-hot-pool` (+ `-full-attachments`). Java runs on the box1 warm agent (`:16440`). Python/JS stay on box2 until a box1 node exists.
+
 ## Wire-in (hot job only — never #14)
 
 1. Copy `WarmRemoteWebDriver.java` into the consuming tests `helpers/`.
