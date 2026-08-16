@@ -9,12 +9,12 @@ Slots expose the same HTTP warm API whether the browser is **WebDriver** ([`brow
 | Pool | Slots | Client | Browser |
 |------|-------|--------|---------|
 | **Cold** (default, live) | 0 warm — hub `docker run` from `browsers.json` | Hub `POST /session` | Catalog |
-| **Warm** (this repo, hub-attach) | **4/4** containers up; **New Session** on that node | Hub → `POST /pool/reserve` (Chrome WD). PW slots up, hub PW still cold | WD `:149` + `:149-min` + PW `1.61.1` + `1.61.1-min` |
-| **Hot** | Session + page already live | Bypass hub (UUID / WS) | Only `-min` — window 03 |
+| **Warm** (this repo, **container-reuse**) | **4/4** containers up; **New Session** on that node | Hub → `POST /pool/reserve` (Chrome WD). PW slots up, hub PW still cold | WD `:149` + `:149-min` + PW `1.61.1` + `1.61.1-min` |
+| **Hot** (**session-reuse**) | Session + page already live | Bypass hub (UUID / WS) | Only `-min` — window 03 |
 
-Cold is the existing Selenoid path and the hub-attach fallback (409 / not Chrome WD / video/VNC/HAR). Warm is hub-attach New Session. Hot (reuse-session, `PREOPEN_URL`, `WarmRemote`) is window 03 — not this README’s live contract.
+Cold is the existing Selenoid path and the container-reuse fallback (409 / not Chrome WD / video/VNC/HAR). Warm is container-reuse (New Session). Hot is session-reuse (`PREOPEN_URL`, `WarmRemote`) — window 03, not this README’s live contract. Not Allure attachments.
 
-## Architecture (live: hub-attach)
+## Architecture (live: container-reuse)
 
 ```
 Selenide / Jenkins  →  hub POST /wd/hub/session  (Chrome WD, no video/VNC/HAR)
@@ -27,7 +27,7 @@ Selenide / Jenkins  →  hub POST /wd/hub/session  (Chrome WD, no video/VNC/HAR)
                          └─ 409 / down → cold Docker
 ```
 
-Warm 4/4 containers: `qaguru/webdriver-chrome:149` · `:149-min` · `qaguru/playwright-chromium:1.61.1` · `:1.61.1-min`. Hub-attach **client** is Chrome WD only (ADR). PW slots are up for metrics / window 03; hub Playwright stays cold. Do not idle `/login`.
+Warm 4/4 containers: `qaguru/webdriver-chrome:149` · `:149-min` · `qaguru/playwright-chromium:1.61.1` · `:1.61.1-min`. Container-reuse **client** is Chrome WD only (ADR). PW slots are up for metrics / window 03; hub Playwright stays cold. Do not idle `/login`.
 
 Jenkins job: [autotests-ai-multistack-tests-pipeline-java-warm-pool](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/). Operator guide: [HUB-ATTACH.md](https://github.com/qa-guru/selenoid/blob/main/docs/HUB-ATTACH.md).
 
@@ -70,7 +70,7 @@ Same logical session, many runs — no overwrite. Toggle recording per run via `
 
 `loopback: true` (hub-on-host): only slots with a loopback WebDriver URL are reserved (`webdriver_url` already `127.0.0.1`/`localhost`/`::1`, or `webdriver_url_loopback`). Response `webdriverUrl` is that loopback address. No matching slot → **409**. Jenkins/box2 omit `loopback` and keep docker-DNS URLs.
 
-Hub-attach operator guide (Chrome WD, loopback reserve, cold fallback): [HUB-ATTACH.md on qa-guru/selenoid](https://github.com/qa-guru/selenoid/blob/main/docs/HUB-ATTACH.md).
+Container-reuse operator guide (Chrome WD, loopback reserve, cold fallback): [HUB-ATTACH.md on qa-guru/selenoid](https://github.com/qa-guru/selenoid/blob/main/docs/HUB-ATTACH.md).
 
 ## Quick start
 
@@ -100,13 +100,13 @@ The orchestrator image is a multi-stage static Go binary on `scratch`.
 
 ## Backlog: hot pool (window 03)
 
-**Not hub-attach.** Hub `POST /session` creates a **new** ChromeDriver session (`about:blank`); a preopened page does not survive.
+**session-reuse, not container-reuse.** Hub `POST /session` creates a **new** ChromeDriver session (`about:blank`); a preopened page does not survive.
 
 Hot 2/2 (`:149-min` + PW `1.61.1-min`, ports **16440/16441**) bypasses the hub. **Not** in `stacks/java-spring/tests`. Java helper SSOT: [`jenkins-overlay/`](jenkins-overlay/) (`WarmRemoteWebDriver` only). One script:
 
 - [`scripts/hot-reuse-session.sh`](scripts/hot-reuse-session.sh) — reserve hot slot → WD `POST /url` or PW WS → trap `DELETE`+`release` (idle ≠ `/login`)
 
-Do not wire this into the hub-attach job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/). Compose: [`docker-compose.hot.yml`](docker-compose.hot.yml) (does not change `docker-compose.hub.yml`).
+Do not wire this into the warm (container-reuse) job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/). Compose: [`docker-compose.hot.yml`](docker-compose.hot.yml) (does not change `docker-compose.hub.yml`).
 
 ## Slot environment
 
@@ -133,10 +133,10 @@ docker compose -f docker-compose.hub.yml up -d --build
 
 Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 2/2 `pool: hot` for UI HOT). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-warm`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
 
-## Hub-attach (Chrome WD)
+## Container-reuse (Chrome WD)
 
-Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /pool/reserve` with `"loopback":true`. Box1 `docker-compose.hub.yml` publishes `127.0.0.1:14441` (headed `:149`) and `14442` (`:149-min`, shm 2g). Headed is first in `config.hub.yaml` so [job #14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/) prefers it. Playwright WS loopback is `14501/14502` — hub does not attach PW. Jenkins/box2 omit `loopback` (`docker-compose.min.yml`).
+Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /pool/reserve` with `"loopback":true`. Box1 `docker-compose.hub.yml` publishes `127.0.0.1:14441` (headed `:149`) and `14442` (`:149-min`, shm 2g). Headed is first in `config.hub.yaml` so [job #14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/) prefers it. Playwright WS loopback is `14501/14502` — hub does not container-reuse PW. Jenkins/box2 omit `loopback` (`docker-compose.min.yml`).
 
 ## Status
 
-Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD hub-attach is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** 2/2 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + [`scripts/hot-reuse-session.sh`](scripts/hot-reuse-session.sh) (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD container-reuse is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** session-reuse 2/2 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + [`scripts/hot-reuse-session.sh`](scripts/hot-reuse-session.sh) (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).

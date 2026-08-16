@@ -1,15 +1,17 @@
 # warm-remote / hot overlay
 
-Java helper to attach Selenide to an existing ChromeDriver session. **Not hub-attach.** Not in `stacks/java-spring/tests`. Not in Jenkins job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/).
+Java helper for **session-reuse**: Selenide joins an existing ChromeDriver session. **Not container-reuse** (warm). Not in `stacks/java-spring/tests`. Not in Jenkins job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/).
 
-| | Warm (hub-attach) | Hot (this overlay) |
+`WarmRemoteWebDriver.attach` is the Java API name (Selenium/Appium sense). The pool term is **session-reuse**. Not an Allure attachment.
+
+| | Warm (**container-reuse**) | Hot (**session-reuse**, this overlay) |
 |--|-------------------|--------------------|
 | Client | Hub `POST /session` → New Session on a warm container | Bypass hub: `WarmRemoteWebDriver.attach` / PW `connect` |
 | Session | New, `about:blank` | Same UUID / WS; page already on `PREOPEN_URL` |
 | Slots | 4/4 including headed `:149` on `14441/14442` | **2/2 `-min` only**, ports `16440` (WD) / `16441` (PW) |
 | `-Dwarm.sessionId` | unused | ChromeDriver **UUID**, not `pool-hot-chrome-min-1` |
 
-Do not copy this into the generator template or the live hub-attach job.
+Do not copy this into the generator template or the live warm (container-reuse) job.
 
 | File | Role |
 |------|------|
