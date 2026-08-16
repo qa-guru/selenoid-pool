@@ -1,9 +1,9 @@
-# Warm 4/4 + hot 2/2 on hub host (box1). Orchestrator + slots for UI WARM/HOT + hub-attach.
+# Warm 4/4 + hot 2/2 on hub host (box1). Orchestrator + slots for UI WARM/HOT + container-reuse.
 # Hub: -warm-pool-url http://127.0.0.1:9090
 #
-# Chrome WD hub-attach (loopback): headed 14441 first, then 149-min 14442 (shm 2g).
+# Chrome WD container-reuse (loopback): headed 14441 first, then 149-min 14442 (shm 2g).
 # Playwright warm slots are up; hub PW remains cold (ADR). Loopback WS is for window 03.
-# Hot slots (pool: hot) are listed for metrics; hub-attach available() skips them.
+# Hot slots (pool: hot) are listed for metrics; container-reuse available() skips them.
 # Do not preopen /login on these slots.
 
 slots:

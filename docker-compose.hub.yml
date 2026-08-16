@@ -1,13 +1,13 @@
 # Warm pool next to Selenoid hub (box1-selenoid).
 # Hub binary on host: -warm-pool-url http://127.0.0.1:9090
 #
-# Warm 4/4 (hub-attach = New Session on an already-up container):
+# Warm 4/4 (container-reuse = New Session on an already-up container):
 #   WD headed  14441  qaguru/webdriver-chrome:149
 #   WD min     14442  qaguru/webdriver-chrome:149-min   (shm 2g, not 256m)
 #   PW headed  14501  qaguru/playwright-chromium:1.61.1
 #   PW min     14502  qaguru/playwright-chromium:1.61.1-min
 #
-# Hub-attach client is Chrome WD only (ADR). Headed 14441 stays first in
+# Container-reuse client is Chrome WD only (ADR). Headed 14441 stays first in
 # config so job #14 prefers it. Slots must not idle on /login.
 #
 #   docker compose -f docker-compose.hub.yml up -d

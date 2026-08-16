@@ -1,5 +1,5 @@
 # Local host-side orchestrator (stand :9090). Ports published from slot containers.
-# Warm 4/4. Do not idle /login. Hub-attach WD uses 14441 (headed) then 14442 (min).
+# Warm 4/4. Do not idle /login. Container-reuse WD uses 14441 (headed) then 14442 (min).
 
 slots:
   - id: pool-chrome-1

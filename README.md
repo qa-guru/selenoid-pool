@@ -29,7 +29,7 @@ Selenide / Jenkins  →  hub POST /wd/hub/session  (Chrome WD, no video/VNC/HAR)
 
 Warm 4/4 containers: `qaguru/webdriver-chrome:149` · `:149-min` · `qaguru/playwright-chromium:1.61.1` · `:1.61.1-min`. Container-reuse **client** is Chrome WD only (ADR). PW slots are up for metrics / window 03; hub Playwright stays cold. Do not idle `/login`.
 
-Jenkins job: [autotests-ai-multistack-tests-pipeline-java-warm-pool](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/). Operator guide: [HUB-ATTACH.md](https://github.com/qa-guru/selenoid/blob/main/docs/HUB-ATTACH.md).
+Jenkins job: [autotests-ai-multistack-tests-pipeline-java-warm-pool](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/). Operator guide: [CONTAINER-REUSE.md](https://github.com/qa-guru/selenoid/blob/main/docs/CONTAINER-REUSE.md).
 
 ## Warm API contract (on each slot, port `8080`)
 
@@ -70,7 +70,7 @@ Same logical session, many runs — no overwrite. Toggle recording per run via `
 
 `loopback: true` (hub-on-host): only slots with a loopback WebDriver URL are reserved (`webdriver_url` already `127.0.0.1`/`localhost`/`::1`, or `webdriver_url_loopback`). Response `webdriverUrl` is that loopback address. No matching slot → **409**. Jenkins/box2 omit `loopback` and keep docker-DNS URLs.
 
-Container-reuse operator guide (Chrome WD, loopback reserve, cold fallback): [HUB-ATTACH.md on qa-guru/selenoid](https://github.com/qa-guru/selenoid/blob/main/docs/HUB-ATTACH.md).
+Container-reuse operator guide (Chrome WD, loopback reserve, cold fallback): [CONTAINER-REUSE.md on qa-guru/selenoid](https://github.com/qa-guru/selenoid/blob/main/docs/CONTAINER-REUSE.md).
 
 ## Quick start
 
