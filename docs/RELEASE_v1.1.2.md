@@ -8,6 +8,6 @@ Container-reuse **без изменений** относительно v1.1.1 (`
 | Изменение | Описание |
 |-----------|----------|
 | **Preopen** | Jenkins preopen / reuse-session **parked**. Не вшивать в container-reuse job: хаб на `POST /session` поднимает новую WD-сессию → `about:blank`. |
-| **PREOPEN_URL** | Дефолт в `scripts/preopen-login.sh` / overlay — teaching `/login` на `autotests.ai/stack/...` (старый `reference-app.autotests.ai` снят). |
+| **PREOPEN_URL** | Дефолт в `scripts/preopen-login.sh` / overlay — teaching `/login` на `autotests.ai/stack/...`. |
 
 Скрипты `scripts/jenkins-preopen.example.sh` и `scripts/preopen-login.sh` остаются заделом на отдельный режим, не канон.
