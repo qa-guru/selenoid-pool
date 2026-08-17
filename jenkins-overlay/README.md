@@ -17,7 +17,6 @@ Do not copy this into the generator template or the live warm (container-reuse) 
 |------|------|
 | `WarmRemoteWebDriver.java` | `attach(remoteUrl, sessionId)` — no New Session |
 | `forward-warm-props.gradle` | Forward `-Dwarm.sessionId` / `-DskipOpen` / `-DcloseBrowserAfterAll` into the test JVM |
-| [`../scripts/lease.sh`](../scripts/lease.sh) | `POST /pool/lease` → ChromeDriver UUID / PW WS (Go orchestrator, no Python) |
 
 `PREOPEN_URL` is an optional `url` field on `POST /pool/lease`. GitHub frontend deploy → lease again with `url` set. `POST /pool/release` keeps the UUID unless `"killSession":true`.
 
@@ -30,13 +29,14 @@ Jenkins stubs (disabled): `autotests-ai-multistack-tests-pipeline-{java,python,j
 ## Wire-in (hot job only — never #14)
 
 1. Copy `WarmRemoteWebDriver.java` into the consuming tests `helpers/`.
-2. Lease: `curl POST /pool/lease` (or `scripts/lease.sh`) → `webdriverUrl` + `sessionId`.
+2. Lease: `curl POST /pool/lease` → `webdriverUrl` + `sessionId`.
 3. `Configuration.remote = null` and `WebDriverRunner.setWebDriver(WarmRemoteWebDriver.attach(webdriverUrl, sessionId))`.
 4. Skip `open("/login")` when `-DskipOpen=true` if lease already passed `url`.
 5. After the test: `POST /pool/release` with the slot id. Do not DELETE the UUID unless tearing the slot down (`killSession: true`).
 
 ```bash
-PREOPEN_URL=https://autotests.ai/stack/backend-java-spring/frontend-typescript-react/login \
-  ./scripts/lease.sh webdriver
+curl -sS -X POST "${WARM_POOL_URL}/pool/lease" \
+  -H 'Content-Type: application/json' \
+  -d '{"protocol":"webdriver","browser":"chrome","owner":"ci-1","loopback":true,"url":"https://autotests.ai/stack/backend-java-spring/frontend-typescript-react/login"}'
 # then Gradle: -DremoteUrl=<webdriverUrl> -Dwarm.sessionId=<sessionId> -DskipOpen=true -DcloseBrowserAfterAll=false
 ```

@@ -125,7 +125,7 @@ Response: `sessionId` is the **ChromeDriver UUID** (not `pool-hot-chrome-min-1`)
 
 `POST /pool/release` unreserves and `/warm/reset`. It does **not** DELETE the UUID unless `"killSession":true`. Next lease returns the same UUID.
 
-Compose: [`docker-compose.hot.yml`](docker-compose.hot.yml). CLI: [`scripts/lease.sh`](scripts/lease.sh). Java attach helper (optional): [`jenkins-overlay/`](jenkins-overlay/). Do not wire lease into the warm job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/).
+Compose: [`docker-compose.hot.yml`](docker-compose.hot.yml). Lease is `POST /pool/lease` (curl or the Java hot job). Java attach helper (optional): [`jenkins-overlay/`](jenkins-overlay/). Do not wire lease into the warm job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/).
 
 Hub stays the cold/warm factory (`-warm-pool-url`, alias `-pool-url`). This process is the slot sidecar. Former GitHub name: `qa-guru/selenoid-warm-pool` (redirects).
 
