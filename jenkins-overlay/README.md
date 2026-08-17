@@ -1,6 +1,6 @@
 # warm-remote / hot overlay
 
-Java helper for **session-reuse**: Selenide joins an existing ChromeDriver session. **Not container-reuse** (warm). Not in `stacks/java-spring/tests`. Not in Jenkins job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/).
+Java helper for **session-reuse**: Selenide joins an existing ChromeDriver session. **Not container-reuse** (warm). Not in hub ethalon tests. Not in Jenkins job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/).
 
 `WarmRemoteWebDriver.attach` is the Java API name (Selenium/Appium sense). The pool term is **session-reuse**. Not an Allure attachment.
 
