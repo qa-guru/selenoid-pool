@@ -169,11 +169,17 @@ func (p *Pool) availableClass(class, protocol, browser string, needLoopback bool
 }
 
 func (s *Slot) wdBase() string {
+	return s.wdDialURL()
+}
+
+// wdDialURL is where this process talks to ChromeDriver (docker DNS on box1).
+// Loopback is for hub/clients on the host — see payloadFor(loopback).
+func (s *Slot) wdDialURL() string {
+	if s.WebdriverURL != nil && strings.TrimSpace(*s.WebdriverURL) != "" {
+		return strings.TrimRight(strings.TrimSpace(*s.WebdriverURL), "/")
+	}
 	if s.WebdriverURLLoopback != nil && strings.TrimSpace(*s.WebdriverURLLoopback) != "" {
 		return strings.TrimRight(strings.TrimSpace(*s.WebdriverURLLoopback), "/")
-	}
-	if s.WebdriverURL != nil {
-		return strings.TrimRight(strings.TrimSpace(*s.WebdriverURL), "/")
 	}
 	return ""
 }

@@ -308,10 +308,7 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	} else {
-		base := ""
-		if payload.WebdriverURL != nil {
-			base = *payload.WebdriverURL
-		}
+		base := slot.wdDialURL()
 		id, didCreate, err := wdEnsureSession(base, knownID)
 		if err != nil {
 			s.unreserve(slot)

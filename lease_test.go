@@ -286,6 +286,55 @@ func TestReleaseKillSessionDeletesDriver(t *testing.T) {
 	}
 }
 
+func TestLeaseDialsDockerURLNotHostLoopback(t *testing.T) {
+	stub := &warmStub{}
+	cd := &cdStub{}
+	warm := httptest.NewServer(stub.handler())
+	t.Cleanup(warm.Close)
+	driver := httptest.NewServer(cd.handler())
+	t.Cleanup(driver.Close)
+
+	content := `
+slots:
+  - id: pool-hot-chrome-min-1
+    protocol: webdriver
+    browser: chrome
+    pool: hot
+    warm_url: ` + warm.URL + `
+    webdriver_url: ` + driver.URL + `/
+    webdriver_url_loopback: http://127.0.0.1:16440/
+`
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := loadPool(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ts := httptest.NewServer((&server{pool: pool}).routes())
+	t.Cleanup(ts.Close)
+
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/lease", map[string]any{
+		"owner":    "box1",
+		"loopback": true,
+	})
+	if code != 200 || body["ok"] != true {
+		t.Fatalf("lease must dial docker-DNS, not host loopback: %d %v", code, body)
+	}
+	if body["webdriverUrl"] != "http://127.0.0.1:16440/" {
+		t.Fatalf("client URL must stay loopback, got %v", body["webdriverUrl"])
+	}
+	if body["created"] != true {
+		t.Fatalf("created=%v", body["created"])
+	}
+	cd.mu.Lock()
+	if cd.creates != 1 {
+		t.Fatalf("creates=%d", cd.creates)
+	}
+	cd.mu.Unlock()
+}
+
 func TestWdEnsureSessionReusesListedID(t *testing.T) {
 	cd := &cdStub{ids: []string{"already"}, urlBySession: map[string]string{"already": "about:blank"}}
 	drv := httptest.NewServer(cd.handler())
