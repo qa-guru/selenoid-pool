@@ -132,6 +132,9 @@ func wdCreateSession(base string) (string, error) {
 		"capabilities": map[string]any{
 			"alwaysMatch": map[string]any{
 				"browserName": "chrome",
+				"goog:chromeOptions": map[string]any{
+					"args": []string{"--headless=new", "--disable-dev-shm-usage"},
+				},
 			},
 		},
 	}
