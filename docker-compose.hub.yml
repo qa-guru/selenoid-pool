@@ -12,7 +12,7 @@
 #
 #   docker compose -f docker-compose.hub.yml up -d
 # Project name matches the repo. Network `selenoid-warm` is explicit (not derived
-# from the project). Orchestrator keeps docker-DNS alias `selenoid-warm-pool`.
+# from the project). DNS name is container_name `selenoid-pool`.
 name: selenoid-pool
 services:
   warm-chrome-1:
@@ -91,9 +91,7 @@ services:
     volumes:
       - ./config.hub.yaml:/config/config.yaml:ro
     networks:
-      selenoid-warm:
-        aliases:
-          - selenoid-warm-pool
+      - selenoid-warm
     depends_on:
       - warm-chrome-1
       - warm-chrome-2

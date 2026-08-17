@@ -39,9 +39,7 @@ services:
     volumes:
       - ./config.min.yaml:/config/config.yaml:ro
     networks:
-      jenkins-agents:
-        aliases:
-          - selenoid-warm-pool
+      - jenkins-agents
     depends_on:
       - warm-chrome-1
       - warm-chrome-2
