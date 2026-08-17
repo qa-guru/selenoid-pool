@@ -24,6 +24,9 @@ type Slot struct {
 	PlaywrightWsURL         *string
 	PlaywrightWsURLLoopback *string
 	ReservedBy              *string
+	// DriverSessionID is the live ChromeDriver UUID (hot lease). Not SessionID
+	// (stable slot / video prefix). Empty on warm slots and Playwright.
+	DriverSessionID string
 }
 
 // slotPayload is the camelCase wire format returned by the orchestrator API.
@@ -39,6 +42,7 @@ type slotPayload struct {
 	PlaywrightWsURL         *string `json:"playwrightWsUrl"`
 	PlaywrightWsURLLoopback *string `json:"playwrightWsUrlLoopback"`
 	ReservedBy              *string `json:"reservedBy"`
+	DriverSessionID         string  `json:"driverSessionId,omitempty"`
 }
 
 func (s *Slot) payload() slotPayload {
@@ -66,6 +70,7 @@ func (s *Slot) payloadFor(loopback bool) slotPayload {
 		PlaywrightWsURL:         ws,
 		PlaywrightWsURLLoopback: s.PlaywrightWsURLLoopback,
 		ReservedBy:              s.ReservedBy,
+		DriverSessionID:         s.DriverSessionID,
 	}
 }
 
@@ -133,14 +138,20 @@ func (s *Slot) isHot() bool {
 // available returns unreserved warm slots, optionally filtered by protocol/browser.
 // Empty filter strings mean "no filter", matching the Python truthiness check.
 // needLoopback keeps only slots the host hub can dial (127.0.0.1 / localhost / ::1).
-// Hot slots (pool=hot) are excluded — reserve them by slotId.
+// Hot slots (pool=hot) are excluded — reserve them by slotId or POST /pool/lease.
 func (p *Pool) available(protocol, browser string, needLoopback bool) []*Slot {
+	return p.availableClass("warm", protocol, browser, needLoopback)
+}
+
+// availableClass is available() for one slot class ("warm" or "hot").
+func (p *Pool) availableClass(class, protocol, browser string, needLoopback bool) []*Slot {
+	wantHot := strings.EqualFold(class, "hot")
 	var result []*Slot
 	for _, slot := range p.slots {
 		if slot.ReservedBy != nil {
 			continue
 		}
-		if slot.isHot() {
+		if slot.isHot() != wantHot {
 			continue
 		}
 		if protocol != "" && slot.Protocol != protocol {
@@ -155,6 +166,16 @@ func (p *Pool) available(protocol, browser string, needLoopback bool) []*Slot {
 		result = append(result, slot)
 	}
 	return result
+}
+
+func (s *Slot) wdBase() string {
+	if s.WebdriverURLLoopback != nil && strings.TrimSpace(*s.WebdriverURLLoopback) != "" {
+		return strings.TrimRight(strings.TrimSpace(*s.WebdriverURLLoopback), "/")
+	}
+	if s.WebdriverURL != nil {
+		return strings.TrimRight(strings.TrimSpace(*s.WebdriverURL), "/")
+	}
+	return ""
 }
 
 type rawSlot struct {

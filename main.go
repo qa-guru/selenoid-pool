@@ -1,9 +1,9 @@
-// Command selenoid-warm-pool is a protocol-agnostic warm browser pool manager.
+// Command selenoid-warm-pool is a protocol-agnostic browser slot manager
+// (warm container-reuse + hot session-reuse). Repo may later rename to selenoid-pool.
 //
-// It is a 1:1 Go port of the Python/Flask PoC (orchestrator/main.py). The slot
-// pool is loaded from a YAML config; each slot exposes the same HTTP warm API
-// (see warm-api/) regardless of protocol (WebDriver / Playwright). The
-// orchestrator only knows warm_url + HTTP.
+// Warm slots: hub POST /pool/reserve → New Session on an already-up container.
+// Hot slots: POST /pool/lease → attach to a live ChromeDriver UUID / Playwright WS
+// (bypass hub). YAML config; each slot also exposes warm-api HTTP (see warm-api/).
 package main
 
 import (
@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -192,16 +193,161 @@ func (s *server) release(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	warmURL := slot.WarmURL
+	kill := boolField(body, "killSession")
+	wdURL := slot.wdBase()
+	driverID := slot.DriverSessionID
 	s.pool.mu.Unlock()
+
+	if kill && driverID != "" {
+		wdDeleteSession(wdURL, driverID)
+	}
 
 	// Best-effort reset — ignore errors, like the Python impl.
 	_, _ = httpJSON("POST", warmURL+"/warm/reset", nil)
 
 	s.pool.mu.Lock()
 	slot.ReservedBy = nil
+	if kill {
+		slot.DriverSessionID = ""
+	}
 	s.pool.mu.Unlock()
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "slotId": slot.ID})
+}
+
+const leaseHotOnly = "lease is for hot slots; use POST /pool/reserve for warm"
+
+func (s *server) unreserve(slot *Slot) {
+	s.pool.mu.Lock()
+	slot.ReservedBy = nil
+	s.pool.mu.Unlock()
+}
+
+func (s *server) lease(w http.ResponseWriter, r *http.Request) {
+	body := decodeBody(r)
+	poolName, _ := stringField(body, "pool")
+	if poolName == "" {
+		poolName = "hot"
+	}
+	if !strings.EqualFold(poolName, "hot") {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": leaseHotOnly})
+		return
+	}
+	protocol, _ := stringField(body, "protocol")
+	browser, _ := stringField(body, "browser")
+	owner, ok := stringField(body, "owner")
+	if !ok {
+		owner = "anonymous"
+	}
+	loopback := boolField(body, "loopback")
+	wantID, _ := stringField(body, "slotId")
+	pageURL, _ := stringField(body, "url")
+	if wantID == "" {
+		if protocol == "" {
+			protocol = "webdriver"
+		}
+		if browser == "" && protocol == "webdriver" {
+			browser = "chrome"
+		}
+		if browser == "" && protocol == "playwright" {
+			browser = "chromium"
+		}
+	}
+
+	s.pool.mu.Lock()
+	var slot *Slot
+	if wantID != "" {
+		slot = s.pool.byID(wantID)
+		if slot == nil || slot.ReservedBy != nil {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		if !slot.isHot() {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": leaseHotOnly})
+			return
+		}
+		if protocol != "" && slot.Protocol != protocol {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		if browser != "" && slot.Browser != browser {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		if loopback && !slot.hasLoopbackEndpoint() {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+	} else {
+		candidates := s.pool.availableClass("hot", protocol, browser, loopback)
+		if len(candidates) == 0 {
+			s.pool.mu.Unlock()
+			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
+			return
+		}
+		slot = candidates[0]
+	}
+	slot.ReservedBy = &owner
+	knownID := slot.DriverSessionID
+	payload := slot.payloadFor(loopback)
+	s.pool.mu.Unlock()
+
+	created := false
+	sessionID := ""
+	if slot.Protocol == "playwright" {
+		if pageURL != "" {
+			if _, err := httpJSON("POST", slot.WarmURL+"/warm/goto", map[string]any{"url": pageURL}); err != nil {
+				s.unreserve(slot)
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+				return
+			}
+		}
+	} else {
+		base := ""
+		if payload.WebdriverURL != nil {
+			base = *payload.WebdriverURL
+		}
+		id, didCreate, err := wdEnsureSession(base, knownID)
+		if err != nil {
+			s.unreserve(slot)
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		sessionID = id
+		created = didCreate
+		if pageURL != "" {
+			if err := wdNavigate(base, sessionID, pageURL); err != nil {
+				s.unreserve(slot)
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+				return
+			}
+		}
+		s.pool.mu.Lock()
+		slot.DriverSessionID = sessionID
+		payload = slot.payloadFor(loopback)
+		s.pool.mu.Unlock()
+	}
+
+	out := map[string]any{
+		"ok":      true,
+		"created": created,
+		"slot":    payload,
+	}
+	if sessionID != "" {
+		out["sessionId"] = sessionID
+	}
+	if payload.WebdriverURL != nil {
+		out["webdriverUrl"] = *payload.WebdriverURL
+	}
+	if payload.PlaywrightWsURL != nil {
+		out["playwrightWsUrl"] = *payload.PlaywrightWsURL
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *server) preopen(w http.ResponseWriter, r *http.Request) {
@@ -291,6 +437,7 @@ func (s *server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /pool/slots", s.listSlots)
 	mux.HandleFunc("POST /pool/reserve", s.reserve)
 	mux.HandleFunc("POST /pool/release", s.release)
+	mux.HandleFunc("POST /pool/lease", s.lease)
 	mux.HandleFunc("POST /pool/preopen", s.preopen)
 	mux.HandleFunc("POST /pool/video/start", s.videoStart)
 	mux.HandleFunc("POST /pool/video/stop", s.videoStop)

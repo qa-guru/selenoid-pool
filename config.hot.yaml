@@ -1,7 +1,7 @@
 # Hot 2/2 slots for the host orchestrator (stand :9090).
 # Merge into config.local.yaml (already includes these ids).
 # Ports 16440 (WD) / 16441 (PW). ≠ warm 14441/14442/14501/14502.
-# Do not idle /login (trap DELETE+release).
+# Lease: POST /pool/lease (keep UUID on release unless killSession).
 
 slots:
   - id: pool-hot-chrome-min-1

@@ -1,7 +1,7 @@
 # Hot 2/2 aggressive pool — separate from warm container-reuse.
 # Host ports 16440+ : WD 16440, PW 16441.
 # Do not publish 14441/14442 (warm WD) or 14501/14502 (warm PW).
-# Images: only -min, shm 2g. Session/page preopen is scripts/hot-reuse-session.sh
+# Images: only -min, shm 2g. Session lease is POST /pool/lease on the orchestrator
 # (bypasses the hub). Orchestrator stays the :9090 stand — do not --stop it.
 #
 # Project name is not the directory default: `docker compose -f docker-compose.hot.yml up`
