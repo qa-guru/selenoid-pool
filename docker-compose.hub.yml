@@ -76,8 +76,8 @@ services:
 
   orchestrator:
     build: .
-    image: qaguru/selenoid-warm-pool:min
-    container_name: selenoid-warm-pool
+    image: qaguru/selenoid-pool:min
+    container_name: selenoid-pool
     restart: unless-stopped
     ports:
       - "127.0.0.1:9090:9090"
@@ -88,7 +88,9 @@ services:
     volumes:
       - ./config.hub.yaml:/config/config.yaml:ro
     networks:
-      - selenoid-warm
+      selenoid-warm:
+        aliases:
+          - selenoid-warm-pool
     depends_on:
       - warm-chrome-1
       - warm-chrome-2

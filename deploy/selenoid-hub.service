@@ -2,7 +2,7 @@
 Description=Selenoid hub (native binary) — qa-guru Selenoid 2
 Documentation=https://github.com/qa-guru/selenoid
 # Warm flag SSOT twin:
-#   design → qa-guru/selenoid-warm-pool  deploy/selenoid-hub.service
+#   design → qa-guru/selenoid-pool  deploy/selenoid-hub.service
 #   install → qa-guru/selenoid.qa.guru   deploy/selenoid-hub.service
 # Keep -warm-pool-url in both; deploy.sh fails if the install unit lacks the flag.
 # Hub runs as a native host binary (not hub-in-docker) so browser port

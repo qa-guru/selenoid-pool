@@ -27,8 +27,8 @@ services:
 
   orchestrator:
     build: .
-    image: qaguru/selenoid-warm-pool:min
-    container_name: selenoid-warm-pool
+    image: qaguru/selenoid-pool:min
+    container_name: selenoid-pool
     restart: unless-stopped
     ports:
       - "9090:9090"
@@ -39,7 +39,9 @@ services:
     volumes:
       - ./config.min.yaml:/config/config.yaml:ro
     networks:
-      - jenkins-agents
+      jenkins-agents:
+        aliases:
+          - selenoid-warm-pool
     depends_on:
       - warm-chrome-1
       - warm-chrome-2

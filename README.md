@@ -1,4 +1,4 @@
-# selenoid-warm-pool
+# selenoid-pool
 
 Protocol-agnostic warm browser pool for fast CI UI tests.
 
@@ -78,23 +78,24 @@ Container-reuse operator guide (Chrome WD, loopback reserve, cold fallback): [CO
 On a clean Docker host, [qa-guru/cm](https://github.com/qa-guru/cm) starts this sidecar and points the hub at it:
 
 ```bash
-./cm selenoid start --warm-pool
+./cm selenoid start --pool
+# alias: --warm-pool
 # :9090 /health → 2xx; hub /status warmTotal>0
 ./cm selenoid start --hot-pool   # same orchestrator + compose profile hot (2/2)
 ```
 
-Without the flag, `cm selenoid start` is cold hub only. Compose files are embedded in cm (published image `qaguru/selenoid-warm-pool:min`, no local `build:`).
+Without the flag, `cm selenoid start` is cold hub only. Compose files are embedded in cm (published image `qaguru/selenoid-pool:min`, no local `build:`).
 
 Go 1.26+ (matches `selenoid` / `cm`). No Python, no pip.
 
 ```bash
-cd selenoid-warm-pool
-go build -o selenoid-warm-pool .
+cd selenoid-pool
+go build -o selenoid-pool .
 
 
 # terminal 1 — build/start slot containers first (see browser-image/README.md)
 # terminal 2
-./selenoid-warm-pool --config config.example.yaml
+./selenoid-pool --config config.example.yaml
 # then: curl -s http://127.0.0.1:9090/health
 ```
 
@@ -126,7 +127,7 @@ Response: `sessionId` is the **ChromeDriver UUID** (not `pool-hot-chrome-min-1`)
 
 Compose: [`docker-compose.hot.yml`](docker-compose.hot.yml). CLI: [`scripts/lease.sh`](scripts/lease.sh). Java attach helper (optional): [`jenkins-overlay/`](jenkins-overlay/). Do not wire lease into the warm job [#14](https://jenkins.qa.guru/job/autotests-ai-multistack-tests-pipeline-java-warm-pool/14/).
 
-Rename of this repo to `selenoid-pool` is a later cut. Hub stays the cold/warm factory; this process stays the slot sidecar.
+Hub stays the cold/warm factory (`-warm-pool-url`, alias `-pool-url`). This process is the slot sidecar. Former GitHub name: `qa-guru/selenoid-warm-pool` (redirects).
 
 ## Slot environment
 
@@ -142,13 +143,13 @@ Playwright slots additionally: `WARM_ENABLED=true`, `PW_WS_ENDPOINT` (set by ent
 
 ## Hub UI metrics (box1)
 
-GitHub: https://github.com/qa-guru/selenoid-warm-pool
+GitHub: [qa-guru/selenoid-pool](https://github.com/qa-guru/selenoid-pool)
 
 Deploy next to the Selenoid hub so `/status` exposes `warmReady` / `warmTotal` for selenoid-ui WARM:
 
 ```bash
 # installer (clean Docker host)
-./cm selenoid start --warm-pool
+./cm selenoid start --pool   # alias: --warm-pool
 
 # or compose on an existing hub host
 docker compose -f docker-compose.hub.yml up -d --build

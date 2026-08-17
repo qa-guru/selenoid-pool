@@ -1,4 +1,4 @@
-module github.com/qa-guru/selenoid-warm-pool
+module github.com/qa-guru/selenoid-pool
 
 go 1.26
 

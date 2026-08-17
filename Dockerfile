@@ -8,14 +8,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/selenoid-warm-pool .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/selenoid-pool .
 
 # --- runtime stage: minimal static image ---
 FROM scratch
 WORKDIR /app
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=build /out/selenoid-warm-pool /usr/local/bin/selenoid-warm-pool
+COPY --from=build /out/selenoid-pool /usr/local/bin/selenoid-pool
 COPY config.example.yaml /app/config.example.yaml
 
 ENV WARM_POOL_CONFIG=/app/config.example.yaml \
@@ -24,4 +24,4 @@ ENV WARM_POOL_CONFIG=/app/config.example.yaml \
 
 EXPOSE 9090
 
-ENTRYPOINT ["/usr/local/bin/selenoid-warm-pool"]
+ENTRYPOINT ["/usr/local/bin/selenoid-pool"]

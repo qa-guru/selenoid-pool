@@ -1,6 +1,6 @@
 # Local 4/4 warm pool: slot containers + host-published ports.
 # Orchestrator runs on the host (stand :9090): do not --stop it.
-#   ./selenoid-warm-pool --config config.local.yaml --host 127.0.0.1 --port 9090
+#   ./selenoid-pool --config config.local.yaml --host 127.0.0.1 --port 9090
 #
 # Images match box1 hub 4/4. No platform pin — use the cached tag (amd64 on
 # this Docker). Slots must not idle on /login.

@@ -1,5 +1,5 @@
-// Command selenoid-warm-pool is a protocol-agnostic browser slot manager
-// (warm container-reuse + hot session-reuse). Repo may later rename to selenoid-pool.
+// Command selenoid-pool is a protocol-agnostic browser slot manager
+// (warm container-reuse + hot session-reuse).
 //
 // Warm slots: hub POST /pool/reserve → New Session on an already-up container.
 // Hot slots: POST /pool/lease → attach to a live ChromeDriver UUID / Playwright WS
@@ -476,7 +476,7 @@ func main() {
 
 	srv := &server{pool: pool}
 	addr := fmt.Sprintf("%s:%d", *host, *port)
-	log.Printf("selenoid-warm-pool listening on %s (%d slots)", addr, len(pool.slots))
+	log.Printf("selenoid-pool listening on %s (%d slots)", addr, len(pool.slots))
 
 	httpServer := &http.Server{
 		Addr:              addr,

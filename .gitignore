@@ -1,4 +1,5 @@
 # Go
+/selenoid-pool
 /selenoid-warm-pool
 *.exe
 *.test

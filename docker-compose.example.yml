@@ -44,7 +44,7 @@ services:
 
   orchestrator:
     build: .
-    container_name: selenoid-warm-pool
+    container_name: selenoid-pool
     ports:
       - "9090:9090"
     environment:
@@ -52,7 +52,9 @@ services:
     volumes:
       - ./config.example.yaml:/config/config.yaml:ro
     networks:
-      - warm-pool
+      warm-pool:
+        aliases:
+          - selenoid-warm-pool
     depends_on:
       - warm-chrome-1
       - warm-chrome-2
