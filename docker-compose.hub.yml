@@ -11,9 +11,9 @@
 # config so job #14 prefers it. Slots must not idle on /login.
 #
 #   docker compose -f docker-compose.hub.yml up -d
-# Project name is pinned so the host dir can be /home/qaguru/selenoid-pool
-# without forking a second compose project.
-name: selenoid-warm-pool
+# Project name matches the repo. Network `selenoid-warm` is explicit (not derived
+# from the project). Orchestrator keeps docker-DNS alias `selenoid-warm-pool`.
+name: selenoid-pool
 services:
   warm-chrome-1:
     image: qaguru/webdriver-chrome:149

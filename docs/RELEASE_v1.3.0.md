@@ -10,6 +10,7 @@ Rename: `qa-guru/selenoid-warm-pool` → `qa-guru/selenoid-pool`. Hub binary is 
 | **GitHub** | [qa-guru/selenoid-pool](https://github.com/qa-guru/selenoid-pool). Old URL redirects. |
 | **Go module** | `github.com/qa-guru/selenoid-pool` |
 | **Image** | `qaguru/selenoid-pool:min` (compose `container_name: selenoid-pool`; docker-DNS alias `selenoid-warm-pool`) |
+| **Compose** | Project `selenoid-pool` (`docker-compose.hub.yml`). Network stays `selenoid-warm`. Hot overlay stays project `selenoid-hot`. |
 | **cm** | `--pool` alias for `--warm-pool` |
 
 Not separate services: no `selenoid-cold-pool` / `selenoid-hot-pool` binaries.
