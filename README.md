@@ -164,4 +164,4 @@ Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /
 
 ## Status
 
-Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD container-reuse is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** session-reuse 2/2 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + `POST /pool/lease` (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD container-reuse is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** session-reuse 4/4 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + `POST /pool/lease` (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).

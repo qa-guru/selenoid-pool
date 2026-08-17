@@ -51,3 +51,21 @@ slots:
     warm_url: http://127.0.0.1:16441
     playwright_ws_url: ws://127.0.0.1:16441/
     playwright_ws_url_loopback: ws://127.0.0.1:16441/
+
+  - id: pool-hot-chrome-1
+    protocol: webdriver
+    browser: chrome
+    pool: hot
+    session_id: pool-hot-chrome-1
+    warm_url: http://127.0.0.1:16442
+    webdriver_url: http://127.0.0.1:16442/
+    webdriver_url_loopback: http://127.0.0.1:16442/
+
+  - id: pool-hot-pw-1
+    protocol: playwright
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-pw-1
+    warm_url: http://127.0.0.1:16443
+    playwright_ws_url: ws://127.0.0.1:16443/
+    playwright_ws_url_loopback: ws://127.0.0.1:16443/
