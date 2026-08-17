@@ -75,11 +75,22 @@ Container-reuse operator guide (Chrome WD, loopback reserve, cold fallback): [CO
 
 ## Quick start
 
+On a clean Docker host, [qa-guru/cm](https://github.com/qa-guru/cm) starts this sidecar and points the hub at it:
+
+```bash
+./cm selenoid start --warm-pool
+# :9090 /health → 2xx; hub /status warmTotal>0
+./cm selenoid start --hot-pool   # same orchestrator + compose profile hot (2/2)
+```
+
+Without the flag, `cm selenoid start` is cold hub only. Compose files are embedded in cm (published image `qaguru/selenoid-warm-pool:min`, no local `build:`).
+
 Go 1.26+ (matches `selenoid` / `cm`). No Python, no pip.
 
 ```bash
 cd selenoid-warm-pool
 go build -o selenoid-warm-pool .
+
 
 # terminal 1 — build/start slot containers first (see browser-image/README.md)
 # terminal 2
@@ -136,6 +147,10 @@ GitHub: https://github.com/qa-guru/selenoid-warm-pool
 Deploy next to the Selenoid hub so `/status` exposes `warmReady` / `warmTotal` for selenoid-ui WARM:
 
 ```bash
+# installer (clean Docker host)
+./cm selenoid start --warm-pool
+
+# or compose on an existing hub host
 docker compose -f docker-compose.hub.yml up -d --build
 # hub flag: -warm-pool-url http://127.0.0.1:9090
 ```
