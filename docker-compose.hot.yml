@@ -1,5 +1,5 @@
-# Hot 2/2 aggressive pool — separate from warm container-reuse.
-# Host ports 16440+ : WD 16440, PW 16441.
+# Hot 3/3 aggressive pool — separate from warm container-reuse.
+# Host ports 16440+ : WD Java 16440, WD Python 16442, PW 16441.
 # Do not publish 14441/14442 (warm WD) or 14501/14502 (warm PW).
 # Images: only -min, shm 2g. Session lease is POST /pool/lease on the orchestrator
 # (bypasses the hub). Orchestrator stays the :9090 stand — do not --stop it.
@@ -20,6 +20,21 @@ services:
       WARM_SESSION_ID: pool-hot-chrome-min-1
     ports:
       - "127.0.0.1:16440:4444"
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
+    networks:
+      - selenoid-warm
+
+  hot-chrome-min-2:
+    image: qaguru/webdriver-chrome:149-min
+    container_name: hot-chrome-min-2
+    restart: unless-stopped
+    environment:
+      WARM_SLOT_ID: pool-hot-chrome-min-2
+      WARM_SESSION_ID: pool-hot-chrome-min-2
+    ports:
+      - "127.0.0.1:16442:4444"
     shm_size: "2gb"
     tmpfs:
       - /tmp:size=512m

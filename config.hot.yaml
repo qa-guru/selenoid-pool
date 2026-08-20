@@ -1,6 +1,6 @@
-# Hot 2/2 slots for the host orchestrator (stand :9090).
+# Hot 3/3 slots for the host orchestrator (stand :9090).
 # Merge into config.local.yaml (already includes these ids).
-# Ports 16440 (WD) / 16441 (PW). ≠ warm 14441/14442/14501/14502.
+# Ports 16440 (WD Java) / 16442 (WD Python) / 16441 (PW). ≠ warm 14441/14442/14501/14502.
 # Lease: POST /pool/lease (keep UUID on release unless killSession).
 
 slots:
@@ -12,6 +12,15 @@ slots:
     warm_url: http://127.0.0.1:16440
     webdriver_url: http://127.0.0.1:16440/
     webdriver_url_loopback: http://127.0.0.1:16440/
+
+  - id: pool-hot-chrome-min-2
+    protocol: webdriver
+    browser: chrome
+    pool: hot
+    session_id: pool-hot-chrome-min-2
+    warm_url: http://127.0.0.1:16442
+    webdriver_url: http://127.0.0.1:16442/
+    webdriver_url_loopback: http://127.0.0.1:16442/
 
   - id: pool-hot-pw-min-1
     protocol: playwright

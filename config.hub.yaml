@@ -1,4 +1,4 @@
-# Warm 4/4 + hot 2/2 on hub host (box1). Orchestrator + slots for UI WARM/HOT + container-reuse.
+# Warm 4/4 + hot 3/3 on hub host (box1). Orchestrator + slots for UI WARM/HOT + container-reuse.
 # Hub: -warm-pool-url http://127.0.0.1:9090
 #
 # Chrome WD container-reuse (loopback): headed 14441 first, then 149-min 14442 (shm 2g).
@@ -47,6 +47,15 @@ slots:
     warm_url: http://hot-chrome-min-1:4444
     webdriver_url: http://hot-chrome-min-1:4444/
     webdriver_url_loopback: http://127.0.0.1:16440/
+
+  - id: pool-hot-chrome-min-2
+    protocol: webdriver
+    browser: chrome
+    pool: hot
+    session_id: pool-hot-chrome-min-2
+    warm_url: http://hot-chrome-min-2:4444
+    webdriver_url: http://hot-chrome-min-2:4444/
+    webdriver_url_loopback: http://127.0.0.1:16442/
 
   - id: pool-hot-pw-min-1
     protocol: playwright
