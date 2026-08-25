@@ -26,7 +26,20 @@ Keep the **Gradle daemon + configuration-cache** already on the agent. Do not in
 
 Jenkins stubs (disabled): `autotests-ai-multistack-tests-pipeline-{java,python,js}-hot-pool` (+ `-full-attachments`). Java runs on the box1 warm agent (`:16440`). Python/JS stay on box2 until a box1 node exists.
 
-## Wire-in (hot job only — never #14)
+## Local after `cm selenoid start --hot-pool`
+
+No Jenkins, no `ensure.sh`, no `hotJunitDaemon`. Slots are up; you lease and attach.
+
+```bash
+curl -sS -X POST http://127.0.0.1:9090/pool/lease \
+  -H 'Content-Type: application/json' \
+  -d '{"protocol":"webdriver","browser":"chrome","owner":"local-1","loopback":true}'
+# response: webdriverUrl + sessionId (ChromeDriver UUID)
+```
+
+Then Gradle: `-DremoteUrl=<webdriverUrl> -Dwarm.sessionId=<sessionId> -DskipOpen=true -DcloseBrowserAfterAll=false`. Copy `WarmRemoteWebDriver.java` into tests `helpers/` and `forward-warm-props.gradle` into the build. After the test: `POST /pool/release` with `slotId`, **without** `killSession`.
+
+## Wire-in (Jenkins hot job only — never #14)
 
 1. Copy `WarmRemoteWebDriver.java` into the consuming tests `helpers/`.
 2. Lease: `curl POST /pool/lease` → `webdriverUrl` + `sessionId`.

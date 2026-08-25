@@ -78,13 +78,15 @@ Container-reuse operator guide (Chrome WD, loopback reserve, cold fallback): [CO
 On a clean Docker host, [qa-guru/cm](https://github.com/qa-guru/cm) starts this sidecar and points the hub at it:
 
 ```bash
-./cm selenoid start --pool
-# alias: --warm-pool
+./cm selenoid start --warm-pool
+# alias: --pool
 # :9090 /health → 2xx; hub /status warmTotal>0
 ./cm selenoid start --hot-pool   # same orchestrator + compose profile hot (2/2)
 ```
 
 Without the flag, `cm selenoid start` is cold hub only. Compose files are embedded in cm (published image `qaguru/selenoid-pool:min`, no local `build:`).
+
+**Your tests:** warm is a normal hub session (`http://127.0.0.1:4444/wd/hub`, Chrome WD, no video/VNC/HAR). Hot is not drop-in: `POST /pool/lease` + attach ([`jenkins-overlay/`](jenkins-overlay/)). There is no `ensure.sh`. The qa-guru Jenkins `hotJunitDaemon` (`:17890`) is a CI sidecar, not this repo.
 
 Go 1.26+ (matches `selenoid` / `cm`). No Python, no pip.
 
@@ -149,7 +151,7 @@ Deploy next to the Selenoid hub so `/status` exposes `warmReady` / `warmTotal` f
 
 ```bash
 # installer (clean Docker host)
-./cm selenoid start --pool   # alias: --warm-pool
+./cm selenoid start --warm-pool   # alias: --pool
 
 # or compose on an existing hub host
 docker compose -f docker-compose.hub.yml up -d --build
