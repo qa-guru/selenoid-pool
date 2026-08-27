@@ -8,7 +8,7 @@ services:
       WARM_SESSION_ID: pool-chrome-1
       ENABLE_VNC: "true"
     networks:
-      - warm-pool
+      - selenoid-reuse
     shm_size: "2gb"
 
   warm-chrome-2:
@@ -18,7 +18,7 @@ services:
       WARM_SLOT_ID: pool-chrome-2
       WARM_SESSION_ID: pool-chrome-2
     networks:
-      - warm-pool
+      - selenoid-reuse
     shm_size: "2gb"
 
   warm-pw-chromium-1:
@@ -29,7 +29,7 @@ services:
       WARM_SESSION_ID: pool-pw-chromium-1
       ENABLE_VNC: "true"
     networks:
-      - warm-pool
+      - selenoid-reuse
     shm_size: "2gb"
 
   warm-pw-chromium-min-1:
@@ -39,7 +39,7 @@ services:
       WARM_SLOT_ID: pool-pw-chromium-min-1
       WARM_SESSION_ID: pool-pw-chromium-min-1
     networks:
-      - warm-pool
+      - selenoid-reuse
     shm_size: "2gb"
 
   orchestrator:
@@ -52,7 +52,7 @@ services:
     volumes:
       - ./config.example.yaml:/config/config.yaml:ro
     networks:
-      - warm-pool
+      - selenoid-reuse
     depends_on:
       - warm-chrome-1
       - warm-chrome-2
@@ -60,5 +60,5 @@ services:
       - warm-pw-chromium-min-1
 
 networks:
-  warm-pool:
-    name: warm-pool
+  selenoid-reuse:
+    name: selenoid-reuse

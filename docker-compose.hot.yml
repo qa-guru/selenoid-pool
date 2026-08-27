@@ -9,7 +9,7 @@
 #
 # Project name is not the directory default: `docker compose -f docker-compose.hot.yml up`
 # must not reconcile/remove warm services from docker-compose.hub.yml.
-# Network selenoid-warm comes from hub compose (external); create if missing.
+# Network selenoid-reuse comes from hub compose (external); create if missing.
 #
 #   docker compose -f docker-compose.hot.yml up -d
 #   docker compose -f docker-compose.hot.yml up -d hot-cdp-min-1
@@ -28,7 +28,7 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
   hot-chrome-min-2:
     image: qaguru/webdriver-chrome:149-min
@@ -43,7 +43,7 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
   hot-pw-min-1:
     image: qaguru/playwright-chromium:1.61.1-min
@@ -58,7 +58,7 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
   hot-cdp-min-1:
     image: qaguru/playwright-chromium:1.61.1-min
@@ -82,9 +82,9 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
 networks:
-  selenoid-warm:
-    name: selenoid-warm
+  selenoid-reuse:
+    name: selenoid-reuse
     external: true

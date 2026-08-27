@@ -11,8 +11,9 @@
 # config so job #14 prefers it. Slots must not idle on /login.
 #
 #   docker compose -f docker-compose.hub.yml up -d
-# Project name matches the repo. Network `selenoid-warm` is explicit (not derived
-# from the project). DNS name is container_name `selenoid-pool`.
+# Project name matches the repo. Network `selenoid-reuse` is warm+hot sidecar L2
+# (container-reuse and session-reuse). Orchestrator DNS is container_name
+# `selenoid-pool`. Cold hub browsers stay on network `selenoid`.
 name: selenoid-pool
 services:
   warm-chrome-1:
@@ -29,7 +30,7 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
   warm-chrome-2:
     image: qaguru/webdriver-chrome:149-min
@@ -44,7 +45,7 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
   warm-pw-1:
     image: qaguru/playwright-chromium:1.61.1
@@ -60,7 +61,7 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
   warm-pw-min-1:
     image: qaguru/playwright-chromium:1.61.1-min
@@ -75,7 +76,7 @@ services:
     tmpfs:
       - /tmp:size=512m
     networks:
-      - selenoid-warm
+      - selenoid-reuse
 
   orchestrator:
     build: .
@@ -91,7 +92,7 @@ services:
     volumes:
       - ./config.hub.yaml:/config/config.yaml:ro
     networks:
-      - selenoid-warm
+      - selenoid-reuse
     depends_on:
       - warm-chrome-1
       - warm-chrome-2
@@ -99,6 +100,6 @@ services:
       - warm-pw-min-1
 
 networks:
-  selenoid-warm:
-    name: selenoid-warm
+  selenoid-reuse:
+    name: selenoid-reuse
     driver: bridge

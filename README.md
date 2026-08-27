@@ -131,6 +131,14 @@ Compose: [`docker-compose.hot.yml`](docker-compose.hot.yml). Lease is `POST /poo
 
 Hub stays the cold/warm factory (`-warm-pool-url`, alias `-pool-url`). This process is the slot sidecar. Former GitHub name: `qa-guru/selenoid-warm-pool` (redirects).
 
+Docker networks (do not conflate with the orchestrator container):
+
+| Network | Who |
+|---------|-----|
+| `selenoid` | Cold: hub `-container-network` ephemeral browsers |
+| `selenoid-reuse` | Warm + hot slots, orchestrator, box1 Jenkins agents |
+| *(container)* `selenoid-pool` | DNS of the orchestrator API `:9090`, not an L2 name |
+
 ## Slot environment
 
 | Env | Default | Description |
@@ -158,7 +166,7 @@ docker compose -f docker-compose.hub.yml up -d --build
 # hub flag: -warm-pool-url http://127.0.0.1:9090
 ```
 
-Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 4/4 `pool: hot` for UI HOT). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-warm`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
+Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 4/4 `pool: hot` for UI HOT). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-reuse`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
 
 ## Container-reuse (Chrome WD)
 
