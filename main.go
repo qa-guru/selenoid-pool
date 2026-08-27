@@ -2,8 +2,9 @@
 // (warm container-reuse + hot session-reuse).
 //
 // Warm slots: hub POST /pool/reserve → New Session on an already-up container.
-// Hot slots: POST /pool/lease → attach to a live ChromeDriver UUID / Playwright WS
-// (bypass hub). YAML config; each slot also exposes warm-api HTTP (see warm-api/).
+// Hot slots: POST /pool/lease → attach to a live ChromeDriver UUID / Playwright WS /
+// CDP HTTP DevTools (bypass hub). YAML config; WD/PW slots also expose warm-api HTTP
+// (see warm-api/). CDP hot slots have no warm-api — loadPool still requires warm_url.
 package main
 
 import (
@@ -252,6 +253,9 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 		if browser == "" && protocol == "playwright" {
 			browser = "chromium"
 		}
+		if browser == "" && protocol == "cdp" {
+			browser = "chromium"
+		}
 	}
 
 	s.pool.mu.Lock()
@@ -299,7 +303,8 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 
 	created := false
 	sessionID := ""
-	if slot.Protocol == "playwright" {
+	switch slot.Protocol {
+	case "playwright":
 		if pageURL != "" {
 			if _, err := httpJSON("POST", slot.WarmURL+"/warm/goto", map[string]any{"url": pageURL}); err != nil {
 				s.unreserve(slot)
@@ -307,7 +312,10 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-	} else {
+	case "cdp":
+		// HTTP DevTools only. No ChromeDriver session, no /warm/goto (slot has no warm-api).
+		// Optional url in the body is ignored — must not 500.
+	default:
 		base := slot.wdDialURL()
 		id, didCreate, err := wdEnsureSession(base, knownID)
 		if err != nil {
@@ -343,6 +351,9 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 	}
 	if payload.PlaywrightWsURL != nil {
 		out["playwrightWsUrl"] = *payload.PlaywrightWsURL
+	}
+	if payload.CdpURL != nil {
+		out["cdpUrl"] = *payload.CdpURL
 	}
 	writeJSON(w, http.StatusOK, out)
 }

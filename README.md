@@ -10,7 +10,7 @@ Slots expose the same HTTP warm API whether the browser is **WebDriver** ([`brow
 |------|-------|--------|---------|
 | **Cold** (default, live) | 0 warm — hub `docker run` from `browsers.json` | Hub `POST /session` | Catalog |
 | **Warm** (this repo, **container-reuse**) | **4/4** containers up; **New Session** on that node | Hub → `POST /pool/reserve` (Chrome WD). PW slots up, hub PW still cold | WD `:149` + `:149-min` + PW `1.61.1` + `1.61.1-min` |
-| **Hot** (**session-reuse**) | Session + page already live | `POST /pool/lease` (bypass hub; ChromeDriver UUID / PW WS) | Only `-min` |
+| **Hot** (**session-reuse**) | **4/4** · session + page already live | `POST /pool/lease` (bypass hub; ChromeDriver UUID / PW WS / CDP HTTP) | Only `-min` |
 
 Cold is the existing Selenoid path and the container-reuse fallback (409 / not Chrome WD / video/VNC/HAR). Warm is container-reuse (New Session). Hot is session-reuse (`POST /pool/lease`). Not Allure attachments.
 
@@ -63,7 +63,7 @@ Same logical session, many runs — no overwrite. Toggle recording per run via `
 | GET | `/health` | — |
 | GET | `/pool/slots` | — |
 | POST | `/pool/reserve` | `{"protocol":"webdriver","browser":"chrome","owner":"jenkins-42"}` · hub adds `"loopback":true` · warm slots only (or `slotId` to pin, including hot) |
-| POST | `/pool/lease` | hot only · `{"protocol":"webdriver","browser":"chrome","owner":"ci-42","loopback":true,"url":"https://…"}` · optional `slotId` |
+| POST | `/pool/lease` | hot only · `{"protocol":"webdriver","browser":"chrome","owner":"ci-42","loopback":true,"url":"https://…"}` · `protocol=playwright` → `playwrightWsUrl` · `protocol=cdp` → `cdpUrl` (HTTP DevTools) · optional `slotId` |
 | POST | `/pool/release` | `{"slotId":"pool-chrome-1"}` · optional `"killSession":true` (DELETE ChromeDriver UUID; default keeps it for hot reuse) |
 | POST | `/pool/preopen` | `{"slotId":"...","url":"https://..."}` |
 | POST | `/pool/video/start` | `{"slotId":"...","sessionId":"..."}` |
@@ -81,7 +81,7 @@ On a clean Docker host, [qa-guru/cm](https://github.com/qa-guru/cm) starts this 
 ./cm selenoid start --warm-pool
 # alias: --pool
 # :9090 /health → 2xx; hub /status warmTotal>0
-./cm selenoid start --hot-pool   # same orchestrator + compose profile hot (2/2)
+./cm selenoid start --hot-pool   # same orchestrator + compose profile hot (4/4)
 ```
 
 Without the flag, `cm selenoid start` is cold hub only. Compose files are embedded in cm (published image `qaguru/selenoid-pool:min`, no local `build:`).
@@ -123,7 +123,7 @@ curl -sS -X POST http://127.0.0.1:9090/pool/lease \
   -d '{"protocol":"webdriver","browser":"chrome","owner":"ci-1","loopback":true}'
 ```
 
-Response: `sessionId` is the **ChromeDriver UUID** (not `pool-hot-chrome-min-1`). `created: true` only when this call issued New Session; otherwise attach to the window already on the slot. Optional `url` navigates that UUID. Playwright: `protocol=playwright` → `playwrightWsUrl` + `/warm/goto` if `url` is set.
+Response: `sessionId` is the **ChromeDriver UUID** (not `pool-hot-chrome-min-1`). `created: true` only when this call issued New Session; otherwise attach to the window already on the slot. Optional `url` navigates that UUID. Playwright: `protocol=playwright` → `playwrightWsUrl` + `/warm/goto` if `url` is set. CDP: `protocol=cdp` → `cdpUrl` (HTTP DevTools, not `ws://` / PW WS); `created: false`; optional `url` is ignored (no warm-api on that slot). Empty `protocol` still defaults to webdriver.
 
 `POST /pool/release` unreserves and `/warm/reset`. It does **not** DELETE the UUID unless `"killSession":true`. Next lease returns the same UUID.
 
@@ -158,7 +158,7 @@ docker compose -f docker-compose.hub.yml up -d --build
 # hub flag: -warm-pool-url http://127.0.0.1:9090
 ```
 
-Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 2/2 `pool: hot` for UI HOT). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-warm`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
+Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 4/4 `pool: hot` for UI HOT). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-warm`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
 
 ## Container-reuse (Chrome WD)
 
@@ -166,4 +166,4 @@ Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /
 
 ## Status
 
-Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD container-reuse is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** session-reuse 2/2 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + `POST /pool/lease` (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD container-reuse is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** session-reuse 4/4 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + `POST /pool/lease` (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).

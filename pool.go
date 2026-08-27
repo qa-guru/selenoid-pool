@@ -23,6 +23,8 @@ type Slot struct {
 	WebdriverURLLoopback    *string
 	PlaywrightWsURL         *string
 	PlaywrightWsURLLoopback *string
+	CdpURL                  *string
+	CdpURLLoopback          *string
 	ReservedBy              *string
 	// DriverSessionID is the live ChromeDriver UUID (hot lease). Not SessionID
 	// (stable slot / video prefix). Empty on warm slots and Playwright.
@@ -41,6 +43,8 @@ type slotPayload struct {
 	WebdriverURLLoopback    *string `json:"webdriverUrlLoopback"`
 	PlaywrightWsURL         *string `json:"playwrightWsUrl"`
 	PlaywrightWsURLLoopback *string `json:"playwrightWsUrlLoopback"`
+	CdpURL                  *string `json:"cdpUrl"`
+	CdpURLLoopback          *string `json:"cdpUrlLoopback"`
 	ReservedBy              *string `json:"reservedBy"`
 	DriverSessionID         string  `json:"driverSessionId,omitempty"`
 }
@@ -58,6 +62,10 @@ func (s *Slot) payloadFor(loopback bool) slotPayload {
 	if loopback && s.PlaywrightWsURLLoopback != nil && strings.TrimSpace(*s.PlaywrightWsURLLoopback) != "" {
 		ws = s.PlaywrightWsURLLoopback
 	}
+	cdp := s.CdpURL
+	if loopback && s.CdpURLLoopback != nil && strings.TrimSpace(*s.CdpURLLoopback) != "" {
+		cdp = s.CdpURLLoopback
+	}
 	return slotPayload{
 		ID:                      s.ID,
 		Protocol:                s.Protocol,
@@ -69,6 +77,8 @@ func (s *Slot) payloadFor(loopback bool) slotPayload {
 		WebdriverURLLoopback:    s.WebdriverURLLoopback,
 		PlaywrightWsURL:         ws,
 		PlaywrightWsURLLoopback: s.PlaywrightWsURLLoopback,
+		CdpURL:                  cdp,
+		CdpURLLoopback:          s.CdpURLLoopback,
 		ReservedBy:              s.ReservedBy,
 		DriverSessionID:         s.DriverSessionID,
 	}
@@ -107,9 +117,22 @@ func (s *Slot) hasLoopbackPW() bool {
 	return false
 }
 
+func (s *Slot) hasLoopbackCDP() bool {
+	if s.CdpURLLoopback != nil && isLoopbackURL(*s.CdpURLLoopback) {
+		return true
+	}
+	if s.CdpURL != nil && isLoopbackURL(*s.CdpURL) {
+		return true
+	}
+	return false
+}
+
 func (s *Slot) hasLoopbackEndpoint() bool {
 	if s.Protocol == "playwright" {
 		return s.hasLoopbackPW()
+	}
+	if s.Protocol == "cdp" {
+		return s.hasLoopbackCDP()
 	}
 	return s.hasLoopbackWD()
 }
@@ -195,6 +218,8 @@ type rawSlot struct {
 	WebdriverURLLoopback    *string `yaml:"webdriver_url_loopback"`
 	PlaywrightWsURL         *string `yaml:"playwright_ws_url"`
 	PlaywrightWsURLLoopback *string `yaml:"playwright_ws_url_loopback"`
+	CdpURL                  *string `yaml:"cdp_url"`
+	CdpURLLoopback          *string `yaml:"cdp_url_loopback"`
 }
 
 type rawConfig struct {
@@ -251,6 +276,8 @@ func loadPool(configPath string) (*Pool, error) {
 			WebdriverURLLoopback:    item.WebdriverURLLoopback,
 			PlaywrightWsURL:         item.PlaywrightWsURL,
 			PlaywrightWsURLLoopback: item.PlaywrightWsURLLoopback,
+			CdpURL:                  item.CdpURL,
+			CdpURLLoopback:          item.CdpURLLoopback,
 		})
 	}
 

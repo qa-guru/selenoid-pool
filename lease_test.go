@@ -127,6 +127,13 @@ slots:
     warm_url: ` + warm.URL + `
     playwright_ws_url: ws://127.0.0.1:16441/
     playwright_ws_url_loopback: ws://127.0.0.1:16441/
+  - id: pool-hot-cdp-min-1
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    warm_url: ` + warm.URL + `
+    cdp_url: http://127.0.0.1:16443/
+    cdp_url_loopback: http://127.0.0.1:16443/
 `
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
@@ -256,6 +263,53 @@ func TestLeasePlaywrightGoto(t *testing.T) {
 	}
 	if !stub.called("POST /warm/goto") {
 		t.Fatal("expected /warm/goto")
+	}
+}
+
+func TestLeaseCDP(t *testing.T) {
+	stub := &warmStub{}
+	cd := &cdStub{}
+	ts := newLeaseServer(t, stub, cd)
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/lease", map[string]any{
+		"protocol": "cdp",
+		"browser":  "chromium",
+		"owner":    "cdp-1",
+		"loopback": true,
+		"url":      "https://example.com/login",
+	})
+	if code != 200 || body["ok"] != true {
+		t.Fatalf("lease cdp: %d %v", code, body)
+	}
+	if body["created"] != false {
+		t.Fatalf("cdp created=%v", body["created"])
+	}
+	if body["cdpUrl"] != "http://127.0.0.1:16443/" {
+		t.Fatalf("cdpUrl=%v", body["cdpUrl"])
+	}
+	if _, ok := body["sessionId"]; ok {
+		t.Fatalf("cdp must not return WD sessionId: %v", body)
+	}
+	if _, ok := body["playwrightWsUrl"]; ok {
+		t.Fatalf("cdp must not return playwrightWsUrl: %v", body)
+	}
+	if _, ok := body["webdriverUrl"]; ok {
+		t.Fatalf("cdp must not return webdriverUrl: %v", body)
+	}
+	slot := body["slot"].(map[string]any)
+	if slot["id"] != "pool-hot-cdp-min-1" {
+		t.Fatalf("must pick hot CDP, got %v", slot["id"])
+	}
+	if slot["protocol"] != "cdp" {
+		t.Fatalf("protocol=%v", slot["protocol"])
+	}
+	if stub.called("POST /warm/goto") {
+		t.Fatal("cdp must not call /warm/goto")
+	}
+	cd.mu.Lock()
+	creates := cd.creates
+	cd.mu.Unlock()
+	if creates != 0 {
+		t.Fatalf("cdp must not wdEnsureSession, creates=%d", creates)
 	}
 }
 

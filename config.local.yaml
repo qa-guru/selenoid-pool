@@ -1,5 +1,6 @@
 # Local host-side orchestrator (stand :9090). Ports published from slot containers.
-# Warm 4/4. Do not idle /login. Container-reuse WD uses 14441 (headed) then 14442 (min).
+# Warm 4/4 + hot 4/4. Do not idle /login. Container-reuse WD uses 14441 (headed) then 14442 (min).
+# Hot CDP: protocol=cdp → cdpUrl. warm_url required by loadPool; do not call /warm/*.
 
 slots:
   - id: pool-chrome-1
@@ -60,3 +61,12 @@ slots:
     warm_url: http://127.0.0.1:16441
     playwright_ws_url: ws://127.0.0.1:16441/
     playwright_ws_url_loopback: ws://127.0.0.1:16441/
+
+  - id: pool-hot-cdp-min-1
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-1
+    warm_url: http://127.0.0.1:16443
+    cdp_url: http://127.0.0.1:16443/
+    cdp_url_loopback: http://127.0.0.1:16443/
