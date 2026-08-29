@@ -10,7 +10,7 @@ Slots expose the same HTTP warm API whether the browser is **WebDriver** ([`brow
 |------|-------|--------|---------|
 | **Cold** (default, live) | 0 warm — hub `docker run` from `browsers.json` | Hub `POST /session` | Catalog |
 | **Warm** (this repo, **container-reuse**) | **4/4** containers up; **New Session** on that node | Hub → `POST /pool/reserve` (Chrome WD). PW slots up, hub PW still cold | WD `:149` + `:149-min` + PW `1.61.1` + `1.61.1-min` |
-| **Hot** (**session-reuse**) | **4/4** · session + page already live | `POST /pool/lease` (bypass hub; ChromeDriver UUID / PW WS / CDP HTTP) | Only `-min` |
+| **Hot** (**session-reuse**) | **8/8** · 2 WD + 1 PW + **5 CDP** (Go mill) · session + page already live | `POST /pool/lease` (bypass hub; ChromeDriver UUID / PW WS / CDP HTTP) | Only `-min` |
 
 Cold is the existing Selenoid path and the container-reuse fallback (409 / not Chrome WD / video/VNC/HAR). Warm is container-reuse (New Session). Hot is session-reuse (`POST /pool/lease`). Not Allure attachments.
 
@@ -81,7 +81,7 @@ On a clean Docker host, [qa-guru/cm](https://github.com/qa-guru/cm) starts this 
 ./cm selenoid start --warm-pool
 # alias: --pool
 # :9090 /health → 2xx; hub /status warmTotal>0
-./cm selenoid start --hot-pool   # same orchestrator + compose profile hot (4/4)
+./cm selenoid start --hot-pool   # same orchestrator + compose profile hot (8/8: 2 WD + 1 PW + 5 CDP)
 ```
 
 Without the flag, `cm selenoid start` is cold hub only. Compose files are embedded in cm (published image `qaguru/selenoid-pool:min`, no local `build:`).
@@ -166,7 +166,7 @@ docker compose -f docker-compose.hub.yml up -d --build
 # hub flag: -warm-pool-url http://127.0.0.1:9090
 ```
 
-Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 4/4 `pool: hot` for UI HOT). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-reuse`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
+Configs: `docker-compose.hub.yml` + `config.hub.yaml` (warm 4/4 + hot 8/8 `pool: hot` for UI HOT: 2 WD + 1 PW + 5 CDP). Hot containers: `docker-compose.hot.yml` (project `selenoid-hot`, network `selenoid-reuse`). Jenkins path stays on box2 (`docker-compose.min.yml`) and does **not** send `loopback`.
 
 ## Container-reuse (Chrome WD)
 
@@ -174,4 +174,4 @@ Hub binary on the host: `-warm-pool-url http://127.0.0.1:9090`. It sends `POST /
 
 ## Status
 
-Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD container-reuse is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** session-reuse 4/4 is [`docker-compose.hot.yml`](docker-compose.hot.yml) + `POST /pool/lease` (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms).
+Go orchestrator. Hub polls `/pool/slots` for UI WARM. Chrome WD container-reuse is live (loopback WD slots + **cold** fallback). Warm compose is **4/4**; hub Playwright remains cold. **Hot** session-reuse **8/8** (2 WD + 1 PW + 5 CDP mill) is [`docker-compose.hot.yml`](docker-compose.hot.yml) + `POST /pool/lease` (not job #14). nginx `/pool/*`, Box2 Jenkins jobs — unchanged. Do not squeeze #14 wall (Gradle ~3s / 4216 ms). Orchestrator loads YAML at start — after adding CDP slots, restart `:9090` only from an archived chat or an explicit OK (active chat must not `--stop` the stand).

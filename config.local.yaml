@@ -1,5 +1,5 @@
 # Local host-side orchestrator (stand :9090). Ports published from slot containers.
-# Warm 4/4 + hot 4/4. Do not idle /login. Container-reuse WD uses 14441 (headed) then 14442 (min).
+# Warm 4/4 + hot 2 WD + 1 PW + 5 CDP (Go mill). Do not idle /login. Container-reuse WD uses 14441 (headed) then 14442 (min).
 # Hot CDP: protocol=cdp → cdpUrl. warm_url required by loadPool; do not call /warm/*.
 
 slots:
@@ -70,3 +70,39 @@ slots:
     warm_url: http://127.0.0.1:16443
     cdp_url: http://127.0.0.1:16443/
     cdp_url_loopback: http://127.0.0.1:16443/
+
+  - id: pool-hot-cdp-min-2
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-2
+    warm_url: http://127.0.0.1:16444
+    cdp_url: http://127.0.0.1:16444/
+    cdp_url_loopback: http://127.0.0.1:16444/
+
+  - id: pool-hot-cdp-min-3
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-3
+    warm_url: http://127.0.0.1:16445
+    cdp_url: http://127.0.0.1:16445/
+    cdp_url_loopback: http://127.0.0.1:16445/
+
+  - id: pool-hot-cdp-min-4
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-4
+    warm_url: http://127.0.0.1:16446
+    cdp_url: http://127.0.0.1:16446/
+    cdp_url_loopback: http://127.0.0.1:16446/
+
+  - id: pool-hot-cdp-min-5
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-5
+    warm_url: http://127.0.0.1:16447
+    cdp_url: http://127.0.0.1:16447/
+    cdp_url_loopback: http://127.0.0.1:16447/

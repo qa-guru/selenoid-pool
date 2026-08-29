@@ -1,18 +1,18 @@
-# Hot 4/4 aggressive pool — separate from warm container-reuse.
-# Host ports 16440+ : WD Java 16440, WD Python 16442, PW 16441, CDP 16443.
+# Hot pool: 2 WD + 1 PW + 5 CDP (Go mill). Separate from warm container-reuse.
+# Host ports 16440+ : WD Java 16440, WD Python 16442, PW 16441, CDP 16443–16447.
 # Do not publish 14441/14442 (warm WD) or 14501/14502 (warm PW).
 # Images: only -min, shm 2g. Session lease is POST /pool/lease on the orchestrator
 # (bypasses the hub). Orchestrator stays the :9090 stand — do not --stop it.
 # CDP: same image as hot-pw-min-1, Chromium+CDP (9222 + proxy 9223), not PW WS :3000.
 # healthcheck disable: image HEALTHCHECK curls :3000. Prefer `up -d hot-cdp-min-1`
-# when WD/PW qemu slots should stay down.
+# when WD/PW qemu slots should stay down. Go mill: `up -d hot-cdp-min-1` … `hot-cdp-min-5`.
 #
 # Project name is not the directory default: `docker compose -f docker-compose.hot.yml up`
 # must not reconcile/remove warm services from docker-compose.hub.yml.
 # Network selenoid-reuse comes from hub compose (external); create if missing.
 #
 #   docker compose -f docker-compose.hot.yml up -d
-#   docker compose -f docker-compose.hot.yml up -d hot-cdp-min-1
+#   docker compose -f docker-compose.hot.yml up -d hot-cdp-min-1 hot-cdp-min-2 hot-cdp-min-3 hot-cdp-min-4 hot-cdp-min-5
 name: selenoid-hot
 services:
   hot-chrome-min-1:
@@ -72,6 +72,102 @@ services:
       WARM_SESSION_ID: pool-hot-cdp-min-1
     ports:
       - "127.0.0.1:16443:9223"
+    volumes:
+      - ./hot-cdp/cdpproxy.pl:/tmp/cdpproxy.pl:ro
+      - ./hot-cdp/hot-cdp-entrypoint.sh:/tmp/hot-cdp-entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/tmp/hot-cdp-entrypoint.sh"]
+    healthcheck:
+      disable: true
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
+    networks:
+      - selenoid-reuse
+
+  hot-cdp-min-2:
+    image: qaguru/playwright-chromium:1.61.1-min
+    container_name: hot-cdp-min-2
+    restart: unless-stopped
+    init: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      WARM_SLOT_ID: pool-hot-cdp-min-2
+      WARM_SESSION_ID: pool-hot-cdp-min-2
+    ports:
+      - "127.0.0.1:16444:9223"
+    volumes:
+      - ./hot-cdp/cdpproxy.pl:/tmp/cdpproxy.pl:ro
+      - ./hot-cdp/hot-cdp-entrypoint.sh:/tmp/hot-cdp-entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/tmp/hot-cdp-entrypoint.sh"]
+    healthcheck:
+      disable: true
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
+    networks:
+      - selenoid-reuse
+
+  hot-cdp-min-3:
+    image: qaguru/playwright-chromium:1.61.1-min
+    container_name: hot-cdp-min-3
+    restart: unless-stopped
+    init: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      WARM_SLOT_ID: pool-hot-cdp-min-3
+      WARM_SESSION_ID: pool-hot-cdp-min-3
+    ports:
+      - "127.0.0.1:16445:9223"
+    volumes:
+      - ./hot-cdp/cdpproxy.pl:/tmp/cdpproxy.pl:ro
+      - ./hot-cdp/hot-cdp-entrypoint.sh:/tmp/hot-cdp-entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/tmp/hot-cdp-entrypoint.sh"]
+    healthcheck:
+      disable: true
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
+    networks:
+      - selenoid-reuse
+
+  hot-cdp-min-4:
+    image: qaguru/playwright-chromium:1.61.1-min
+    container_name: hot-cdp-min-4
+    restart: unless-stopped
+    init: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      WARM_SLOT_ID: pool-hot-cdp-min-4
+      WARM_SESSION_ID: pool-hot-cdp-min-4
+    ports:
+      - "127.0.0.1:16446:9223"
+    volumes:
+      - ./hot-cdp/cdpproxy.pl:/tmp/cdpproxy.pl:ro
+      - ./hot-cdp/hot-cdp-entrypoint.sh:/tmp/hot-cdp-entrypoint.sh:ro
+    entrypoint: ["/bin/bash", "/tmp/hot-cdp-entrypoint.sh"]
+    healthcheck:
+      disable: true
+    shm_size: "2gb"
+    tmpfs:
+      - /tmp:size=512m
+    networks:
+      - selenoid-reuse
+
+  hot-cdp-min-5:
+    image: qaguru/playwright-chromium:1.61.1-min
+    container_name: hot-cdp-min-5
+    restart: unless-stopped
+    init: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      WARM_SLOT_ID: pool-hot-cdp-min-5
+      WARM_SESSION_ID: pool-hot-cdp-min-5
+    ports:
+      - "127.0.0.1:16447:9223"
     volumes:
       - ./hot-cdp/cdpproxy.pl:/tmp/cdpproxy.pl:ro
       - ./hot-cdp/hot-cdp-entrypoint.sh:/tmp/hot-cdp-entrypoint.sh:ro

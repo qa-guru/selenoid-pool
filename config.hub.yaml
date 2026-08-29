@@ -1,4 +1,4 @@
-# Warm 4/4 + hot 4/4 on hub host (box1). Orchestrator + slots for UI WARM/HOT + container-reuse.
+# Warm 4/4 + hot 2 WD + 1 PW + 5 CDP (Go mill) on hub host (box1). Orchestrator + slots for UI WARM/HOT + container-reuse.
 # Hub: -warm-pool-url http://127.0.0.1:9090
 #
 # Chrome WD container-reuse (loopback): headed 14441 first, then 149-min 14442 (shm 2g).
@@ -74,3 +74,39 @@ slots:
     warm_url: http://hot-cdp-min-1:9223
     cdp_url: http://hot-cdp-min-1:9223/
     cdp_url_loopback: http://127.0.0.1:16443/
+
+  - id: pool-hot-cdp-min-2
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-2
+    warm_url: http://hot-cdp-min-2:9223
+    cdp_url: http://hot-cdp-min-2:9223/
+    cdp_url_loopback: http://127.0.0.1:16444/
+
+  - id: pool-hot-cdp-min-3
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-3
+    warm_url: http://hot-cdp-min-3:9223
+    cdp_url: http://hot-cdp-min-3:9223/
+    cdp_url_loopback: http://127.0.0.1:16445/
+
+  - id: pool-hot-cdp-min-4
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-4
+    warm_url: http://hot-cdp-min-4:9223
+    cdp_url: http://hot-cdp-min-4:9223/
+    cdp_url_loopback: http://127.0.0.1:16446/
+
+  - id: pool-hot-cdp-min-5
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-5
+    warm_url: http://hot-cdp-min-5:9223
+    cdp_url: http://hot-cdp-min-5:9223/
+    cdp_url_loopback: http://127.0.0.1:16447/

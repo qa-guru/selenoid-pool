@@ -1,6 +1,6 @@
-# Hot 4/4 slots for the host orchestrator (stand :9090).
+# Hot slots: 2 WD + 1 PW + 5 CDP (Go mill) for the host orchestrator (stand :9090).
 # Merge into config.local.yaml (already includes these ids).
-# Ports 16440 (WD Java) / 16442 (WD Python) / 16441 (PW) / 16443 (CDP). ≠ warm 14441/14442/14501/14502.
+# Ports 16440 (WD Java) / 16442 (WD Python) / 16441 (PW) / 16443–16447 (CDP). ≠ warm 14441/14442/14501/14502.
 # Lease: POST /pool/lease (keep UUID on release unless killSession).
 # CDP: protocol=cdp → cdpUrl (HTTP DevTools). warm_url is required by loadPool; do not call /warm/*.
 
@@ -40,3 +40,39 @@ slots:
     warm_url: http://127.0.0.1:16443
     cdp_url: http://127.0.0.1:16443/
     cdp_url_loopback: http://127.0.0.1:16443/
+
+  - id: pool-hot-cdp-min-2
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-2
+    warm_url: http://127.0.0.1:16444
+    cdp_url: http://127.0.0.1:16444/
+    cdp_url_loopback: http://127.0.0.1:16444/
+
+  - id: pool-hot-cdp-min-3
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-3
+    warm_url: http://127.0.0.1:16445
+    cdp_url: http://127.0.0.1:16445/
+    cdp_url_loopback: http://127.0.0.1:16445/
+
+  - id: pool-hot-cdp-min-4
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-4
+    warm_url: http://127.0.0.1:16446
+    cdp_url: http://127.0.0.1:16446/
+    cdp_url_loopback: http://127.0.0.1:16446/
+
+  - id: pool-hot-cdp-min-5
+    protocol: cdp
+    browser: chromium
+    pool: hot
+    session_id: pool-hot-cdp-min-5
+    warm_url: http://127.0.0.1:16447
+    cdp_url: http://127.0.0.1:16447/
+    cdp_url_loopback: http://127.0.0.1:16447/
