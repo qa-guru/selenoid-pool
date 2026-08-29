@@ -88,7 +88,7 @@ Without the flag, `cm selenoid start` is cold hub only. Compose files are embedd
 
 **Your tests:** warm is a normal hub session (`http://127.0.0.1:4444/wd/hub`, Chrome WD, no video/VNC/HAR). Hot is not drop-in: `POST /pool/lease` + attach ([`jenkins-overlay/`](jenkins-overlay/)). There is no `ensure.sh`. The qa-guru Jenkins `hotJunitDaemon` (`:17890`) is a CI sidecar, not this repo.
 
-Go 1.26+ (matches `selenoid` / `cm`). No Python, no pip.
+Go 1.27+ (matches `selenoid` / `cm`). No Python, no pip.
 
 ```bash
 cd selenoid-pool
