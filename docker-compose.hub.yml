@@ -4,8 +4,8 @@
 # Warm 4/4 (container-reuse = New Session on an already-up container):
 #   WD headed  14441  qaguru/webdriver-chrome:152         (hub catalog default)
 #   WD headed  14442  qaguru/webdriver-chrome:152         (152-min cannot start Chrome on Box1)
-#   PW headed  14501  qaguru/playwright-chromium:1.61.1
-#   PW min     14502  qaguru/playwright-chromium:1.61.1-min
+#   PW headed  14501  qaguru/playwright-chromium:1.63.0
+#   PW min     14502  qaguru/playwright-chromium:1.63.0-min
 #
 # Container-reuse client is Chrome WD only (ADR). Headed 14441 stays first in
 # config so job #14 prefers it. Slots must not idle on /login.
@@ -49,7 +49,7 @@ services:
       - selenoid-reuse
 
   warm-pw-1:
-    image: qaguru/playwright-chromium:1.61.1
+    image: qaguru/playwright-chromium:1.63.0
     container_name: warm-pw-1
     restart: unless-stopped
     environment:
@@ -65,7 +65,7 @@ services:
       - selenoid-reuse
 
   warm-pw-min-1:
-    image: qaguru/playwright-chromium:1.61.1-min
+    image: qaguru/playwright-chromium:1.63.0-min
     container_name: warm-pw-min-1
     restart: unless-stopped
     environment:

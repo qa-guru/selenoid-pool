@@ -16,7 +16,7 @@
 name: selenoid-hot
 services:
   hot-chrome-min-1:
-    image: qaguru/webdriver-chrome:149-min
+    image: qaguru/webdriver-chrome:153-min
     container_name: hot-chrome-min-1
     restart: unless-stopped
     environment:
@@ -31,7 +31,7 @@ services:
       - selenoid-reuse
 
   hot-chrome-min-2:
-    image: qaguru/webdriver-chrome:149-min
+    image: qaguru/webdriver-chrome:153-min
     container_name: hot-chrome-min-2
     restart: unless-stopped
     environment:
@@ -46,7 +46,7 @@ services:
       - selenoid-reuse
 
   hot-pw-min-1:
-    image: qaguru/playwright-chromium:1.61.1-min
+    image: qaguru/playwright-chromium:1.63.0-min
     container_name: hot-pw-min-1
     restart: unless-stopped
     environment:
@@ -61,7 +61,7 @@ services:
       - selenoid-reuse
 
   hot-cdp-min-1:
-    image: qaguru/playwright-chromium:1.61.1-min
+    image: qaguru/playwright-chromium:1.63.0-min
     container_name: hot-cdp-min-1
     restart: unless-stopped
     init: true
@@ -85,7 +85,7 @@ services:
       - selenoid-reuse
 
   hot-cdp-min-2:
-    image: qaguru/playwright-chromium:1.61.1-min
+    image: qaguru/playwright-chromium:1.63.0-min
     container_name: hot-cdp-min-2
     restart: unless-stopped
     init: true
@@ -109,7 +109,7 @@ services:
       - selenoid-reuse
 
   hot-cdp-min-3:
-    image: qaguru/playwright-chromium:1.61.1-min
+    image: qaguru/playwright-chromium:1.63.0-min
     container_name: hot-cdp-min-3
     restart: unless-stopped
     init: true
@@ -133,7 +133,7 @@ services:
       - selenoid-reuse
 
   hot-cdp-min-4:
-    image: qaguru/playwright-chromium:1.61.1-min
+    image: qaguru/playwright-chromium:1.63.0-min
     container_name: hot-cdp-min-4
     restart: unless-stopped
     init: true
@@ -157,7 +157,7 @@ services:
       - selenoid-reuse
 
   hot-cdp-min-5:
-    image: qaguru/playwright-chromium:1.61.1-min
+    image: qaguru/playwright-chromium:1.63.0-min
     container_name: hot-cdp-min-5
     restart: unless-stopped
     init: true
