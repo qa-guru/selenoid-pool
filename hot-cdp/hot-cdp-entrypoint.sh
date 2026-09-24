@@ -4,7 +4,7 @@
 set -e
 perl /tmp/cdpproxy.pl &
 bin=""
-for c in /ms-playwright/chromium-*/chrome-linux64/chrome /ms-playwright/chromium-*/chrome-linux/chrome; do
+for c in /ms-playwright/chromium-*/chrome-linux64/chrome /ms-playwright/chromium-*/chrome-linux-arm64/chrome /ms-playwright/chromium-*/chrome-linux/chrome; do
   if [ -x "$c" ]; then bin=$c; break; fi
 done
 if [ -z "$bin" ]; then
