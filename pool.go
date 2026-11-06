@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -26,6 +27,24 @@ type Slot struct {
 	CdpURL                  *string
 	CdpURLLoopback          *string
 	ReservedBy              *string
+	// ReservedAt / LeaseExpiresAt bound the reservation: the reaper frees the
+	// slot once the lease deadline passes. Both are zero while the slot is free.
+	ReservedAt     time.Time
+	LeaseExpiresAt time.Time
+	// StartedAt is the slot's current "birth": config load or last successful
+	// recycle. SessionCount counts reserve/lease handouts since then.
+	StartedAt    time.Time
+	SessionCount int
+	// Recycling is set while the container is being restarted. RecyclePending
+	// marks a slot that crossed the recycle thresholds but could not be
+	// restarted (no docker socket / restart failed) — it keeps serving.
+	Recycling      bool
+	RecyclePending bool
+	// Container overrides the docker container name used for recycle restarts.
+	// Empty → derived from the warm_url hostname when it is not loopback.
+	Container string
+	// LastRecycleAttempt throttles recycle retries after a failure.
+	LastRecycleAttempt time.Time
 	// DriverSessionID is the live ChromeDriver UUID (hot lease). Not SessionID
 	// (stable slot / video prefix). Empty on warm slots and Playwright.
 	DriverSessionID string
@@ -33,20 +52,26 @@ type Slot struct {
 
 // slotPayload is the camelCase wire format returned by the orchestrator API.
 type slotPayload struct {
-	ID                      string  `json:"id"`
-	Protocol                string  `json:"protocol"`
-	Browser                 string  `json:"browser"`
-	Pool                    string  `json:"pool"`
-	SessionID               string  `json:"sessionId"`
-	WarmURL                 string  `json:"warmUrl"`
-	WebdriverURL            *string `json:"webdriverUrl"`
-	WebdriverURLLoopback    *string `json:"webdriverUrlLoopback"`
-	PlaywrightWsURL         *string `json:"playwrightWsUrl"`
-	PlaywrightWsURLLoopback *string `json:"playwrightWsUrlLoopback"`
-	CdpURL                  *string `json:"cdpUrl"`
-	CdpURLLoopback          *string `json:"cdpUrlLoopback"`
-	ReservedBy              *string `json:"reservedBy"`
-	DriverSessionID         string  `json:"driverSessionId,omitempty"`
+	ID                      string     `json:"id"`
+	Protocol                string     `json:"protocol"`
+	Browser                 string     `json:"browser"`
+	Pool                    string     `json:"pool"`
+	SessionID               string     `json:"sessionId"`
+	WarmURL                 string     `json:"warmUrl"`
+	WebdriverURL            *string    `json:"webdriverUrl"`
+	WebdriverURLLoopback    *string    `json:"webdriverUrlLoopback"`
+	PlaywrightWsURL         *string    `json:"playwrightWsUrl"`
+	PlaywrightWsURLLoopback *string    `json:"playwrightWsUrlLoopback"`
+	CdpURL                  *string    `json:"cdpUrl"`
+	CdpURLLoopback          *string    `json:"cdpUrlLoopback"`
+	ReservedBy              *string    `json:"reservedBy"`
+	ReservedAt              *time.Time `json:"reservedAt"`
+	LeaseExpiresAt          *time.Time `json:"leaseExpiresAt"`
+	SessionCount            int        `json:"sessionCount"`
+	AgeSec                  int64      `json:"ageSec"`
+	Recycling               bool       `json:"recycling"`
+	RecyclePending          bool       `json:"recyclePending"`
+	DriverSessionID         string     `json:"driverSessionId,omitempty"`
 }
 
 func (s *Slot) payload() slotPayload {
@@ -80,8 +105,34 @@ func (s *Slot) payloadFor(loopback bool) slotPayload {
 		CdpURL:                  cdp,
 		CdpURLLoopback:          s.CdpURLLoopback,
 		ReservedBy:              s.ReservedBy,
+		ReservedAt:              timePtr(s.ReservedAt),
+		LeaseExpiresAt:          timePtr(s.LeaseExpiresAt),
+		SessionCount:            s.SessionCount,
+		AgeSec:                  s.ageSec(),
+		Recycling:               s.Recycling,
+		RecyclePending:          s.RecyclePending,
 		DriverSessionID:         s.DriverSessionID,
 	}
+}
+
+func timePtr(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	out := t.UTC()
+	return &out
+}
+
+// ageSec is seconds since the slot's current birth (load or last recycle).
+func (s *Slot) ageSec() int64 {
+	if s.StartedAt.IsZero() {
+		return 0
+	}
+	sec := int64(time.Since(s.StartedAt).Seconds())
+	if sec < 0 {
+		return 0
+	}
+	return sec
 }
 
 func isLoopbackURL(raw string) bool {
@@ -143,6 +194,14 @@ func (s *Slot) hasLoopbackEndpoint() bool {
 type Pool struct {
 	mu    sync.Mutex
 	slots []*Slot
+
+	// LeaseTTL is the default reservation lifetime; MaxLeaseTTL clamps the
+	// per-request ttlSec override. The reaper frees expired reservations.
+	LeaseTTL    time.Duration
+	MaxLeaseTTL time.Duration
+	// RecycleMaxSessions / RecycleMaxAge rotate warm containers. Zero disables.
+	RecycleMaxSessions int
+	RecycleMaxAge      time.Duration
 }
 
 func (p *Pool) byID(id string) *Slot {
@@ -158,6 +217,80 @@ func (s *Slot) isHot() bool {
 	return strings.EqualFold(s.Pool, "hot")
 }
 
+// anonymousOwner is the ReservedBy value used when reserve/lease send no owner.
+// Anonymous reservations may be released/renewed by anyone; a named owner must
+// be echoed back (or bypassed with force).
+const anonymousOwner = "anonymous"
+
+// canRelease reports whether owner may free or renew this reservation.
+// force is the documented operator escape hatch.
+func (s *Slot) canRelease(owner string, force bool) bool {
+	if s.ReservedBy == nil || force || *s.ReservedBy == anonymousOwner {
+		return true
+	}
+	return owner != "" && owner == *s.ReservedBy
+}
+
+// claim marks a slot reserved for owner with the given lease TTL.
+func (s *Slot) claim(owner string, ttl time.Duration) {
+	now := time.Now()
+	s.ReservedBy = &owner
+	s.ReservedAt = now
+	s.LeaseExpiresAt = now.Add(ttl)
+	s.SessionCount++
+}
+
+// unclaim frees the slot. The session/recycle counters are kept.
+func (s *Slot) unclaim() {
+	s.ReservedBy = nil
+	s.ReservedAt = time.Time{}
+	s.LeaseExpiresAt = time.Time{}
+}
+
+// expired reports whether the reservation outlived its lease deadline.
+// A zero deadline never expires (defensive — claim always sets one).
+func (s *Slot) expired(now time.Time) bool {
+	return s.ReservedBy != nil && !s.LeaseExpiresAt.IsZero() && now.After(s.LeaseExpiresAt)
+}
+
+// dueForRecycle reports whether a warm slot crossed a rotation threshold.
+// Only free, non-recycling warm slots rotate (hot slots keep their session).
+func (s *Slot) dueForRecycle(maxSessions int, maxAge time.Duration, now time.Time) bool {
+	if s.isHot() || s.ReservedBy != nil || s.Recycling {
+		return false
+	}
+	if maxSessions > 0 && s.SessionCount >= maxSessions {
+		return true
+	}
+	if maxAge > 0 && !s.StartedAt.IsZero() && now.Sub(s.StartedAt) >= maxAge {
+		return true
+	}
+	return false
+}
+
+// containerName resolves the docker container to restart on recycle:
+// the explicit `container` config field, else the warm_url hostname when it is
+// a docker-DNS name (not loopback). Empty means "cannot restart by name".
+func (s *Slot) containerName() string {
+	if name := strings.TrimSpace(s.Container); name != "" {
+		return name
+	}
+	u, err := url.Parse(s.WarmURL)
+	if err != nil || u.Hostname() == "" || isLoopbackHost(u.Hostname()) {
+		return ""
+	}
+	return u.Hostname()
+}
+
+func isLoopbackHost(host string) bool {
+	switch strings.ToLower(host) {
+	case "127.0.0.1", "localhost", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
 // available returns unreserved warm slots, optionally filtered by protocol/browser.
 // Empty filter strings mean "no filter", matching the Python truthiness check.
 // needLoopback keeps only slots the host hub can dial (127.0.0.1 / localhost / ::1).
@@ -171,7 +304,7 @@ func (p *Pool) availableClass(class, protocol, browser string, needLoopback bool
 	wantHot := strings.EqualFold(class, "hot")
 	var result []*Slot
 	for _, slot := range p.slots {
-		if slot.ReservedBy != nil {
+		if slot.ReservedBy != nil || slot.Recycling {
 			continue
 		}
 		if slot.isHot() != wantHot {
@@ -214,6 +347,7 @@ type rawSlot struct {
 	Pool                    string  `yaml:"pool"`
 	WarmURL                 string  `yaml:"warm_url"`
 	SessionID               string  `yaml:"session_id"`
+	Container               string  `yaml:"container"`
 	WebdriverURL            *string `yaml:"webdriver_url"`
 	WebdriverURLLoopback    *string `yaml:"webdriver_url_loopback"`
 	PlaywrightWsURL         *string `yaml:"playwright_ws_url"`
@@ -223,7 +357,25 @@ type rawSlot struct {
 }
 
 type rawConfig struct {
-	Slots []rawSlot `yaml:"slots"`
+	// LeaseTTL is the default reservation TTL ("1h"). MaxLeaseTTL clamps the
+	// per-request ttlSec ("6h"). Recycle knobs rotate warm containers.
+	LeaseTTL           string    `yaml:"lease_ttl"`
+	MaxLeaseTTL        string    `yaml:"max_lease_ttl"`
+	RecycleMaxSessions int       `yaml:"recycle_after_sessions"`
+	RecycleMaxAge      string    `yaml:"recycle_after_age"`
+	Slots              []rawSlot `yaml:"slots"`
+}
+
+func parseDur(raw string, fallback time.Duration) (time.Duration, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return fallback, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf("duration %q: %v", raw, err)
+	}
+	return d, nil
 }
 
 // loadPool reads the YAML config and builds the pool, applying the same
@@ -239,6 +391,23 @@ func loadPool(configPath string) (*Pool, error) {
 		return nil, err
 	}
 
+	leaseTTL, err := parseDur(raw.LeaseTTL, time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("lease_ttl: %v", err)
+	}
+	maxLeaseTTL, err := parseDur(raw.MaxLeaseTTL, 6*time.Hour)
+	if err != nil {
+		return nil, fmt.Errorf("max_lease_ttl: %v", err)
+	}
+	if leaseTTL <= 0 || maxLeaseTTL < leaseTTL {
+		return nil, fmt.Errorf("lease_ttl must be > 0 and <= max_lease_ttl")
+	}
+	recycleMaxAge, err := parseDur(raw.RecycleMaxAge, 0)
+	if err != nil {
+		return nil, fmt.Errorf("recycle_after_age: %v", err)
+	}
+
+	now := time.Now()
 	slots := make([]*Slot, 0, len(raw.Slots))
 	for i, item := range raw.Slots {
 		if item.ID == "" {
@@ -272,6 +441,8 @@ func loadPool(configPath string) (*Pool, error) {
 			Pool:                    poolName,
 			WarmURL:                 strings.TrimRight(item.WarmURL, "/"),
 			SessionID:               sessionID,
+			Container:               item.Container,
+			StartedAt:               now,
 			WebdriverURL:            item.WebdriverURL,
 			WebdriverURLLoopback:    item.WebdriverURLLoopback,
 			PlaywrightWsURL:         item.PlaywrightWsURL,
@@ -281,5 +452,11 @@ func loadPool(configPath string) (*Pool, error) {
 		})
 	}
 
-	return &Pool{slots: slots}, nil
+	return &Pool{
+		slots:              slots,
+		LeaseTTL:           leaseTTL,
+		MaxLeaseTTL:        maxLeaseTTL,
+		RecycleMaxSessions: raw.RecycleMaxSessions,
+		RecycleMaxAge:      recycleMaxAge,
+	}, nil
 }

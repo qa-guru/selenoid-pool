@@ -183,6 +183,7 @@ func TestLeaseCreatesThenReusesSession(t *testing.T) {
 
 	code, body = doJSON(t, http.MethodPost, ts.URL+"/pool/release", map[string]any{
 		"slotId": "pool-hot-chrome-min-1",
+		"owner":  "ci-1",
 	})
 	if code != 200 {
 		t.Fatalf("release: %d %v", code, body)
@@ -320,6 +321,7 @@ func TestReleaseKillSessionDeletesDriver(t *testing.T) {
 	sid := body["sessionId"].(string)
 	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/release", map[string]any{
 		"slotId":      "pool-hot-chrome-min-1",
+		"owner":       "k",
 		"killSession": true,
 	})
 	if code != 200 {

@@ -178,7 +178,7 @@ func TestReserveReleaseAnd409(t *testing.T) {
 	}
 
 	slotID := slot["id"].(string)
-	code, body = doJSON(t, http.MethodPost, ts.URL+"/pool/release", map[string]any{"slotId": slotID})
+	code, body = doJSON(t, http.MethodPost, ts.URL+"/pool/release", map[string]any{"slotId": slotID, "owner": "jenkins-1"})
 	if code != 200 || body["ok"] != true {
 		t.Fatalf("release: %d %v", code, body)
 	}
@@ -203,7 +203,7 @@ func TestReleaseBestEffortIgnoresResetErrors(t *testing.T) {
 	_, body := doJSON(t, http.MethodPost, ts.URL+"/pool/reserve", map[string]any{"owner": "x"})
 	slotID := body["slot"].(map[string]any)["id"].(string)
 
-	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/release", map[string]any{"slotId": slotID})
+	code, body := doJSON(t, http.MethodPost, ts.URL+"/pool/release", map[string]any{"slotId": slotID, "owner": "x"})
 	if code != 200 || body["ok"] != true {
 		t.Fatalf("release should swallow reset errors: %d %v", code, body)
 	}

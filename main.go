@@ -9,12 +9,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -71,7 +74,8 @@ func httpJSON(method, url string, payload any) (any, error) {
 }
 
 type server struct {
-	pool *Pool
+	pool   *Pool
+	docker *dockerClient
 }
 
 func writeJSON(w http.ResponseWriter, status int, body any) {
@@ -110,6 +114,32 @@ func boolField(body map[string]any, key string) bool {
 	return ok && b
 }
 
+// numField reads a numeric JSON field (float64 after decode).
+func numField(body map[string]any, key string) (float64, bool) {
+	v, ok := body[key]
+	if !ok || v == nil {
+		return 0, false
+	}
+	f, ok := v.(float64)
+	return f, ok
+}
+
+// leaseTTL resolves the reservation TTL: request ttlSec (seconds) clamped to
+// [60s, max_lease_ttl], else the configured default.
+func (p *Pool) leaseTTL(body map[string]any) time.Duration {
+	if sec, ok := numField(body, "ttlSec"); ok && sec > 0 {
+		d := time.Duration(sec * float64(time.Second))
+		if d < time.Minute {
+			return time.Minute
+		}
+		if d > p.MaxLeaseTTL {
+			return p.MaxLeaseTTL
+		}
+		return d
+	}
+	return p.LeaseTTL
+}
+
 func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 	s.pool.mu.Lock()
 	n := len(s.pool.slots)
@@ -133,7 +163,7 @@ func (s *server) reserve(w http.ResponseWriter, r *http.Request) {
 	browser, _ := stringField(body, "browser")
 	owner, ok := stringField(body, "owner")
 	if !ok {
-		owner = "anonymous"
+		owner = anonymousOwner
 	}
 	loopback := boolField(body, "loopback")
 	wantID, _ := stringField(body, "slotId")
@@ -142,7 +172,7 @@ func (s *server) reserve(w http.ResponseWriter, r *http.Request) {
 	var slot *Slot
 	if wantID != "" {
 		slot = s.pool.byID(wantID)
-		if slot == nil || slot.ReservedBy != nil {
+		if slot == nil || slot.ReservedBy != nil || slot.Recycling {
 			s.pool.mu.Unlock()
 			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
 			return
@@ -171,11 +201,39 @@ func (s *server) reserve(w http.ResponseWriter, r *http.Request) {
 		}
 		slot = candidates[0]
 	}
-	slot.ReservedBy = &owner
+	slot.claim(owner, s.pool.leaseTTL(body))
 	payload := slot.payloadFor(loopback)
 	s.pool.mu.Unlock()
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "slot": payload})
+}
+
+// freeSlot performs the release side effects — optional driver-session kill,
+// best-effort /warm/reset — then unclaims the slot. Called after the caller
+// validated the reservation and dropped the pool lock.
+func (s *server) freeSlot(slot *Slot, kill bool) {
+	wdURL := slot.wdBase()
+	driverID := slot.DriverSessionID
+	if kill && driverID != "" {
+		wdDeleteSession(wdURL, driverID)
+	}
+
+	// Best-effort reset — ignore errors, like the Python impl.
+	_, _ = httpJSON("POST", slot.WarmURL+"/warm/reset", nil)
+
+	s.pool.mu.Lock()
+	slot.unclaim()
+	if kill {
+		slot.DriverSessionID = ""
+	}
+	s.pool.mu.Unlock()
+}
+
+// reservationError is the 409 payload when a release/renew owner check fails.
+func reservationError(w http.ResponseWriter, slot *Slot) {
+	writeJSON(w, http.StatusConflict, map[string]any{
+		"error": fmt.Sprintf("slot %q is reserved by %q", slot.ID, *slot.ReservedBy),
+	})
 }
 
 func (s *server) release(w http.ResponseWriter, r *http.Request) {
@@ -185,6 +243,9 @@ func (s *server) release(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "slotId is required"})
 		return
 	}
+	owner, _ := stringField(body, "owner")
+	force := boolField(body, "force")
+	kill := boolField(body, "killSession")
 
 	s.pool.mu.Lock()
 	slot := s.pool.byID(slotID)
@@ -193,34 +254,68 @@ func (s *server) release(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "slot not found"})
 		return
 	}
-	warmURL := slot.WarmURL
-	kill := boolField(body, "killSession")
-	wdURL := slot.wdBase()
-	driverID := slot.DriverSessionID
-	s.pool.mu.Unlock()
-
-	if kill && driverID != "" {
-		wdDeleteSession(wdURL, driverID)
+	if slot.ReservedBy == nil {
+		// Already free — idempotent no-op; do not touch the browser.
+		s.pool.mu.Unlock()
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "slotId": slot.ID, "alreadyFree": true})
+		return
 	}
-
-	// Best-effort reset — ignore errors, like the Python impl.
-	_, _ = httpJSON("POST", warmURL+"/warm/reset", nil)
-
-	s.pool.mu.Lock()
-	slot.ReservedBy = nil
-	if kill {
-		slot.DriverSessionID = ""
+	if !slot.canRelease(owner, force) {
+		reservationError(w, slot)
+		s.pool.mu.Unlock()
+		return
 	}
 	s.pool.mu.Unlock()
+
+	s.freeSlot(slot, kill)
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "slotId": slot.ID})
+}
+
+// renew extends a live reservation's lease deadline (same owner rules as release).
+func (s *server) renew(w http.ResponseWriter, r *http.Request) {
+	body := decodeBody(r)
+	slotID, ok := stringField(body, "slotId")
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "slotId is required"})
+		return
+	}
+	owner, _ := stringField(body, "owner")
+	force := boolField(body, "force")
+
+	s.pool.mu.Lock()
+	slot := s.pool.byID(slotID)
+	if slot == nil {
+		s.pool.mu.Unlock()
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "slot not found"})
+		return
+	}
+	if slot.ReservedBy == nil {
+		s.pool.mu.Unlock()
+		writeJSON(w, http.StatusConflict, map[string]any{"error": "slot is not reserved"})
+		return
+	}
+	if !slot.canRelease(owner, force) {
+		reservationError(w, slot)
+		s.pool.mu.Unlock()
+		return
+	}
+	slot.LeaseExpiresAt = time.Now().Add(s.pool.leaseTTL(body))
+	deadline := slot.LeaseExpiresAt
+	s.pool.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ok":             true,
+		"slotId":         slot.ID,
+		"leaseExpiresAt": deadline.UTC(),
+	})
 }
 
 const leaseHotOnly = "lease is for hot slots; use POST /pool/reserve for warm"
 
 func (s *server) unreserve(slot *Slot) {
 	s.pool.mu.Lock()
-	slot.ReservedBy = nil
+	slot.unclaim()
 	s.pool.mu.Unlock()
 }
 
@@ -238,7 +333,7 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 	browser, _ := stringField(body, "browser")
 	owner, ok := stringField(body, "owner")
 	if !ok {
-		owner = "anonymous"
+		owner = anonymousOwner
 	}
 	loopback := boolField(body, "loopback")
 	wantID, _ := stringField(body, "slotId")
@@ -262,7 +357,7 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 	var slot *Slot
 	if wantID != "" {
 		slot = s.pool.byID(wantID)
-		if slot == nil || slot.ReservedBy != nil {
+		if slot == nil || slot.ReservedBy != nil || slot.Recycling {
 			s.pool.mu.Unlock()
 			writeJSON(w, http.StatusConflict, map[string]any{"error": "no available slots"})
 			return
@@ -296,7 +391,7 @@ func (s *server) lease(w http.ResponseWriter, r *http.Request) {
 		}
 		slot = candidates[0]
 	}
-	slot.ReservedBy = &owner
+	slot.claim(owner, s.pool.leaseTTL(body))
 	knownID := slot.DriverSessionID
 	payload := slot.payloadFor(loopback)
 	s.pool.mu.Unlock()
@@ -437,6 +532,131 @@ func (s *server) lookup(id string) *Slot {
 	return s.pool.byID(id)
 }
 
+// sweepExpired frees reservations whose lease deadline passed (reaper), then
+// kicks container rotation for free warm slots that crossed the recycle
+// thresholds. Safe to call periodically and from tests.
+func (s *server) sweepExpired(now time.Time) {
+	s.pool.mu.Lock()
+	type victim struct {
+		slot  *Slot
+		owner string
+	}
+	var expired []victim
+	for _, slot := range s.pool.slots {
+		if slot.expired(now) {
+			expired = append(expired, victim{slot: slot, owner: *slot.ReservedBy})
+		}
+	}
+	s.pool.mu.Unlock()
+
+	for _, v := range expired {
+		log.Printf("[REAPER] lease expired: %s (owner %s)", v.slot.ID, v.owner)
+		s.freeSlot(v.slot, false)
+	}
+	s.sweepRecycle(now)
+}
+
+// sweepRecycle marks due warm slots Recycling and restarts them in the
+// background. Slots without a restart path (no docker socket, no container
+// name) are flagged RecyclePending and keep serving — availability is never
+// silently reduced.
+func (s *server) sweepRecycle(now time.Time) {
+	p := s.pool
+	if p.RecycleMaxSessions <= 0 && p.RecycleMaxAge <= 0 {
+		return
+	}
+	p.mu.Lock()
+	var due []*Slot
+	for _, slot := range p.slots {
+		if !slot.dueForRecycle(p.RecycleMaxSessions, p.RecycleMaxAge, now) {
+			continue
+		}
+		if now.Sub(slot.LastRecycleAttempt) < time.Minute {
+			continue
+		}
+		slot.Recycling = true
+		slot.LastRecycleAttempt = now
+		due = append(due, slot)
+	}
+	p.mu.Unlock()
+	for _, slot := range due {
+		go s.recycleSlot(slot)
+	}
+}
+
+// recycleSlot restarts the slot container via docker and re-arms its counters
+// once the warm endpoint answers TCP again.
+func (s *server) recycleSlot(slot *Slot) {
+	fail := func(err error) {
+		log.Printf("[RECYCLE] %s failed: %v", slot.ID, err)
+		s.pool.mu.Lock()
+		slot.Recycling = false
+		slot.RecyclePending = true
+		s.pool.mu.Unlock()
+	}
+	if s.docker == nil {
+		fail(fmt.Errorf("docker socket unavailable"))
+		return
+	}
+	name := slot.containerName()
+	if name == "" {
+		fail(fmt.Errorf("no container name (set container: in the slot config)"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	if err := s.docker.RestartContainer(ctx, name); err != nil {
+		fail(err)
+		return
+	}
+	if err := waitTCPOpen(slot.WarmURL, 90*time.Second); err != nil {
+		fail(err)
+		return
+	}
+	s.pool.mu.Lock()
+	slot.StartedAt = time.Now()
+	slot.SessionCount = 0
+	slot.Recycling = false
+	slot.RecyclePending = false
+	s.pool.mu.Unlock()
+	log.Printf("[RECYCLE] %s restarted container %s", slot.ID, name)
+}
+
+// waitTCPOpen polls the warm_url host:port until a TCP connect succeeds —
+// protocol-agnostic readiness after a container restart.
+func waitTCPOpen(rawURL string, timeout time.Duration) error {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return fmt.Errorf("bad warm url %q", rawURL)
+	}
+	deadline := time.Now().Add(timeout)
+	for {
+		conn, err := net.DialTimeout("tcp", u.Host, 2*time.Second)
+		if err == nil {
+			_ = conn.Close()
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s not reachable after restart", u.Host)
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+// reaperLoop runs the lease reaper + recycler sweep until ctx is cancelled.
+func (s *server) reaperLoop(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			s.sweepExpired(now)
+		}
+	}
+}
+
 func (s *server) routes() *http.ServeMux {
 	mux := http.NewServeMux()
 	// GET / must be 2xx — stand URL gate probes the root path.
@@ -445,6 +665,7 @@ func (s *server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /pool/slots", s.listSlots)
 	mux.HandleFunc("POST /pool/reserve", s.reserve)
 	mux.HandleFunc("POST /pool/release", s.release)
+	mux.HandleFunc("POST /pool/renew", s.renew)
 	mux.HandleFunc("POST /pool/lease", s.lease)
 	mux.HandleFunc("POST /pool/preopen", s.preopen)
 	mux.HandleFunc("POST /pool/video/start", s.videoStart)
@@ -486,6 +707,18 @@ func main() {
 	}
 
 	srv := &server{pool: pool}
+	if sock := envOr("POOL_DOCKER_SOCKET", "/var/run/docker.sock"); sock != "" {
+		if _, err := os.Stat(sock); err == nil {
+			srv.docker = newDockerClient(sock)
+			log.Printf("[INIT] docker socket %s — warm recycle enabled", sock)
+		} else {
+			log.Printf("[INIT] no docker socket at %s — warm recycle will report recyclePending", sock)
+		}
+	}
+	log.Printf("[INIT] lease_ttl=%s max_lease_ttl=%s recycle sessions>=%d age>=%s",
+		pool.LeaseTTL, pool.MaxLeaseTTL, pool.RecycleMaxSessions, pool.RecycleMaxAge)
+	go srv.reaperLoop(context.Background(), 15*time.Second)
+
 	addr := fmt.Sprintf("%s:%d", *host, *port)
 	log.Printf("selenoid-pool listening on %s (%d slots)", addr, len(pool.slots))
 
