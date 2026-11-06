@@ -49,7 +49,7 @@ services:
       - selenoid-reuse
 
   warm-pw-1:
-    image: qaguru/playwright-chromium:1.63.0
+    image: qaguru/playwright-chromium:1.65.0
     container_name: warm-pw-1
     restart: unless-stopped
     environment:
@@ -65,7 +65,7 @@ services:
       - selenoid-reuse
 
   warm-pw-min-1:
-    image: qaguru/playwright-chromium:1.63.0-min
+    image: qaguru/playwright-chromium:1.65.0-min
     container_name: warm-pw-min-1
     restart: unless-stopped
     environment:
