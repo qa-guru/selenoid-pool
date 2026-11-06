@@ -92,6 +92,8 @@ services:
       WARM_POOL_PORT: "9090"
     volumes:
       - ./config.hub.yaml:/config/config.yaml:ro
+      # Read-only socket for warm recycle restarts (recycle_after_* in config).
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - selenoid-reuse
     depends_on:

@@ -62,14 +62,37 @@ Same logical session, many runs — no overwrite. Toggle recording per run via `
 | GET | `/` | — (same as `/health`; stand URL gate) |
 | GET | `/health` | — |
 | GET | `/pool/slots` | — |
-| POST | `/pool/reserve` | `{"protocol":"webdriver","browser":"chrome","owner":"jenkins-42"}` · hub adds `"loopback":true` · warm slots only (or `slotId` to pin, including hot) |
-| POST | `/pool/lease` | hot only · `{"protocol":"webdriver","browser":"chrome","owner":"ci-42","loopback":true,"url":"https://…"}` · `protocol=playwright` → `playwrightWsUrl` · `protocol=cdp` → `cdpUrl` (HTTP DevTools) · optional `slotId` |
-| POST | `/pool/release` | `{"slotId":"pool-chrome-1"}` · optional `"killSession":true` (DELETE ChromeDriver UUID; default keeps it for hot reuse) |
+| POST | `/pool/reserve` | `{"protocol":"webdriver","browser":"chrome","owner":"jenkins-42"}` · hub adds `"loopback":true` · warm slots only (or `slotId` to pin, including hot) · optional `ttlSec` |
+| POST | `/pool/lease` | hot only · `{"protocol":"webdriver","browser":"chrome","owner":"ci-42","loopback":true,"url":"https://…"}` · `protocol=playwright` → `playwrightWsUrl` · `protocol=cdp` → `cdpUrl` (HTTP DevTools) · optional `slotId`, `ttlSec` |
+| POST | `/pool/release` | `{"slotId":"pool-chrome-1","owner":"jenkins-42"}` · optional `"killSession":true` (DELETE ChromeDriver UUID; default keeps it for hot reuse) · `"force":true` is the ops escape hatch |
+| POST | `/pool/renew` | `{"slotId":"pool-chrome-1","owner":"jenkins-42","ttlSec":1200}` — resets the lease deadline to now+ttlSec (same owner rules as release) |
 | POST | `/pool/preopen` | `{"slotId":"...","url":"https://..."}` |
 | POST | `/pool/video/start` | `{"slotId":"...","sessionId":"..."}` |
 | POST | `/pool/video/stop` | `{"slotId":"..."}` |
 
 `loopback: true` (hub-on-host): only slots with a loopback WebDriver URL are reserved (`webdriver_url` already `127.0.0.1`/`localhost`/`::1`, or `webdriver_url_loopback`). Response `webdriverUrl` is that loopback address. No matching slot → **409**. Jenkins/box2 omit `loopback` and keep docker-DNS URLs.
+
+## Lease, reaper, recycle
+
+Every reserve/lease writes `reservedBy` + `reservedAt` + `leaseExpiresAt` on the slot.
+
+- **Owner verification.** `release`/`renew` must echo the reserving `owner`; a mismatch → `409 {"error":"slot \"…\" is reserved by \"…\""}`. Reservations made without an owner are `anonymous` and anyone may release them. `"force":true` is the operator bypass for stuck slots. Releasing a free slot is an idempotent no-op (`"alreadyFree":true`) that does not touch the browser.
+- **TTL.** `lease_ttl` (default `1h`) is the reservation lifetime; per-request `ttlSec` overrides it (floor 60s, clamp `max_lease_ttl`, default `6h`). The hub sends `ttlSec = max-timeout + 30m` so a live session always outlives its lease. A reaper sweeps expired leases every 15s — a dead agent cannot pin a slot forever. `POST /pool/renew` extends the deadline for long jobs.
+- **Warm recycle.** `recycle_after_sessions` / `recycle_after_age` rotate free warm containers via `docker restart` (orchestrator needs `/var/run/docker.sock`; container name comes from `container:` or the non-loopback `warm_url` host). A restarting slot reads `recycling:true` and is not handed out; a failed rotation sets `recyclePending:true` and keeps serving. `sessionCount` and `ageSec` reset on every recycle.
+- **Slot payload** (`/pool/slots`, reserve/lease `slot`): adds `reservedAt`, `leaseExpiresAt`, `sessionCount`, `ageSec`, `recycling`, `recyclePending` to the old fields.
+
+## Hub pool selector + servedPool
+
+Hub sessions accept `selenoid:options.pool` or `labels.pool` (`cold|warm|hot|auto`, options win):
+
+| Value | Behavior |
+|-------|----------|
+| unset / `auto` | Prefer warm; cold fallback stays possible — response says which |
+| `cold` | Always cold-start (documented replacement for the `enableHar` workaround) |
+| `warm` | Strict: warm slot or `session not created` — never silent cold |
+| `hot` | `invalid argument` — hot lives behind `POST /pool/lease`, not hub `/session` |
+
+The New Session response carries `servedPool` (`warm|cold`), `requestedPool`, `servedSlot` (warm only) and `forcedPoolReason` when the request was rerouted (`sidecar-caps`, `non-chrome`, `version-pin`, `min-image`, `warm-unavailable`, `warm-attach-failed`, `no-warm-pool`). `enableVideo`/`enableVNC`/`enableHAR` always force cold: with `pool=warm` that refusal is a `session not created` naming `forcedPoolReason=sidecar-caps`. Hub `/status` adds `poolRouting` (`warmServed`/`coldServed`/`warmFallbacks` + last 20 routes) and the new slot fields on `warmSlots`/`hotSlots`.
 
 Container-reuse operator guide (Chrome WD, loopback reserve, cold fallback): [CONTAINER-REUSE.md on qa-guru/selenoid](https://github.com/qa-guru/selenoid/blob/main/docs/CONTAINER-REUSE.md).
 

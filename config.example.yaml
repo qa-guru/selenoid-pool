@@ -1,4 +1,13 @@
 # Example pool config — point warm_url at running slot containers.
+#
+# Lease + recycle knobs (all optional):
+#   lease_ttl              default reservation lifetime (default "1h"); the
+#                          reaper frees expired leases every 15s
+#   max_lease_ttl          clamp for per-request ttlSec (default "6h")
+#   recycle_after_sessions restart a free warm container after N sessions (0=off)
+#   recycle_after_age      restart a free warm container older than this (0=off)
+# Recycle needs the docker socket mounted on the orchestrator and resolves the
+# container name from `container:` or the non-loopback warm_url host.
 
 video_dir: /opt/selenoid/video
 
