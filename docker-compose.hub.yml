@@ -17,7 +17,7 @@
 name: selenoid-pool
 services:
   warm-chrome-1:
-    image: qaguru/webdriver-chrome:152
+    image: qaguru/webdriver-chrome:157
     container_name: warm-chrome-1
     restart: unless-stopped
     environment:
@@ -33,7 +33,7 @@ services:
       - selenoid-reuse
 
   warm-chrome-2:
-    image: qaguru/webdriver-chrome:152
+    image: qaguru/webdriver-chrome:157
     container_name: warm-chrome-2
     restart: unless-stopped
     environment:
