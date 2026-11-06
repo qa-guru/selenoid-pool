@@ -25,8 +25,7 @@ check() { # container catalog-key
 
 for c in $(sudo docker ps --format '{{.Names}}'); do
   case "$c" in
-    warm-chrome-*|warm-pw-*|hot-pw-*|hot-cdp-*) check "$c" "$( [ "${c#warm-pw}" != "$c" ] || [ "${c#hot-pw}" != "$c" ] || [ "${c#hot-cdp}" != "$c" ] && echo playwright-chromium || echo chrome)" ;;
-    hot-chrome-min-*) echo "INFO $c  $(sudo docker inspect "$c" --format '{{.Config.Image}}' | cut -d: -f2) — min lane, no newer min image published" ;;
+    warm-chrome-*|warm-pw-*|hot-pw-*|hot-cdp-*|hot-chrome-*) check "$c" "$( [ "${c#warm-pw}" != "$c" ] || [ "${c#hot-pw}" != "$c" ] || [ "${c#hot-cdp}" != "$c" ] && echo playwright-chromium || echo chrome)" ;;
   esac
 done
 exit "$fail"

@@ -16,7 +16,7 @@
 name: selenoid-hot
 services:
   hot-chrome-min-1:
-    image: qaguru/webdriver-chrome:153-min
+    image: qaguru/webdriver-chrome:157-min
     container_name: hot-chrome-min-1
     restart: unless-stopped
     environment:
@@ -31,7 +31,7 @@ services:
       - selenoid-reuse
 
   hot-chrome-min-2:
-    image: qaguru/webdriver-chrome:153-min
+    image: qaguru/webdriver-chrome:157-min
     container_name: hot-chrome-min-2
     restart: unless-stopped
     environment:
