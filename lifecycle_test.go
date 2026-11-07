@@ -329,6 +329,26 @@ slots:
 	}
 }
 
+func TestDueForRecycleHotSlotAgesOnly(t *testing.T) {
+	now := time.Now()
+	owner := "job-1"
+	old := &Slot{Pool: "hot", StartedAt: now.Add(-2 * time.Hour), SessionCount: 99}
+	if !old.dueForRecycle(20, time.Hour, now) {
+		t.Fatal("free hot slot past max age must rotate")
+	}
+	reserved := &Slot{Pool: "hot", StartedAt: now.Add(-2 * time.Hour), ReservedBy: &owner}
+	if reserved.dueForRecycle(20, time.Hour, now) {
+		t.Fatal("reserved hot slot must not rotate")
+	}
+	young := &Slot{Pool: "hot", StartedAt: now.Add(-30 * time.Minute), SessionCount: 99}
+	if young.dueForRecycle(20, time.Hour, now) {
+		t.Fatal("young hot slot must not rotate")
+	}
+	if young.dueForRecycle(2, time.Hour, now) {
+		t.Fatal("hot session count must not rotate")
+	}
+}
+
 func TestContainerNameFromWarmURL(t *testing.T) {
 	s := &Slot{WarmURL: "http://warm-chrome-1:4444"}
 	if got := s.containerName(); got != "warm-chrome-1" {

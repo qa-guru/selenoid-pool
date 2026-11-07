@@ -9,8 +9,9 @@
 # Lease + warm recycle knobs:
 #   reserve/lease accept optional ttlSec (seconds, clamped to max_lease_ttl);
 #   the reaper frees expired reservations so a dead agent cannot hold a slot.
-#   recycle_* restart a free warm container after N served sessions or M age
-#   (requires the docker.sock mount on the orchestrator).
+#   recycle_* restart a free container: warm slots after N served sessions or
+#   M age; hot slots after M age only (the long-lived session wedges over
+#   time). Requires the docker.sock mount on the orchestrator.
 lease_ttl: "1h"
 max_lease_ttl: "6h"
 recycle_after_sessions: 20

@@ -253,19 +253,21 @@ func (s *Slot) expired(now time.Time) bool {
 	return s.ReservedBy != nil && !s.LeaseExpiresAt.IsZero() && now.After(s.LeaseExpiresAt)
 }
 
-// dueForRecycle reports whether a warm slot crossed a rotation threshold.
-// Only free, non-recycling warm slots rotate (hot slots keep their session).
+// dueForRecycle reports whether a free slot crossed a rotation threshold.
+// Hot slots rotate on age only: session count is their expected load, while
+// the session age is what wedges the long-lived browser (input events stop
+// reaching the page — seen on a 28h / 25-lease Chrome session).
 func (s *Slot) dueForRecycle(maxSessions int, maxAge time.Duration, now time.Time) bool {
-	if s.isHot() || s.ReservedBy != nil || s.Recycling {
+	if s.ReservedBy != nil || s.Recycling {
 		return false
-	}
-	if maxSessions > 0 && s.SessionCount >= maxSessions {
-		return true
 	}
 	if maxAge > 0 && !s.StartedAt.IsZero() && now.Sub(s.StartedAt) >= maxAge {
 		return true
 	}
-	return false
+	if s.isHot() {
+		return false
+	}
+	return maxSessions > 0 && s.SessionCount >= maxSessions
 }
 
 // containerName resolves the docker container to restart on recycle:
