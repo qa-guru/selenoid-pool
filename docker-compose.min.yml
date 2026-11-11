@@ -31,7 +31,9 @@ services:
     container_name: selenoid-pool
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
+      - "172.17.0.1:9090:9090"
+      - "172.18.0.1:9090:9090"
     environment:
       WARM_POOL_CONFIG: /config/config.yaml
       WARM_POOL_HOST: "0.0.0.0"
